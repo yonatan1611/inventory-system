@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
-import { useAuth } from '../contexts/authContext';
-import { useNavigate } from 'react-router-dom';
+import { useState } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import { authAPI } from '../services/auth';
+import { useAuth } from '../contexts/AuthContext';
 
 const Login = () => {
   const [username, setUsername] = useState('');
@@ -10,6 +11,10 @@ const Login = () => {
   
   const { login } = useAuth();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  
+  // Check for session expiration message
+  const sessionExpired = searchParams.get('error') === 'session_expired';
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -37,12 +42,20 @@ const Login = () => {
             Sign in to your account
           </p>
         </div>
+        
+        {sessionExpired && (
+          <div className="bg-yellow-100 border border-yellow-400 text-yellow-700 px-4 py-3 rounded">
+            Your session has expired. Please log in again.
+          </div>
+        )}
+        
         <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
           {error && (
             <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
               {error}
             </div>
           )}
+          
           <div className="rounded-md shadow-sm -space-y-px">
             <div>
               <label htmlFor="username" className="sr-only">

@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
 import { productsAPI } from '../services/products';
 
-export const useProducts = () => {
-  const [products, setProducts] = useState([]);
+export function useProducts() {
+  const [products, setProducts] = useState([]); // <-- Make sure this is an array
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
@@ -10,7 +10,8 @@ export const useProducts = () => {
     setLoading(true);
     try {
       const response = await productsAPI.getAll();
-      setProducts(response.data);
+      const { data } = response;
+      setProducts(Array.isArray(data) ? data : []);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -25,8 +26,9 @@ export const useProducts = () => {
   const createProduct = async (product) => {
     try {
       const response = await productsAPI.create(product);
-      setProducts(prev => [...prev, response.data]);
-      return response.data;
+      const newProduct = response.data;
+      setProducts(prev => Array.isArray(prev) ? [...prev, newProduct] : [newProduct]);
+      return newProduct;
     } catch (err) {
       throw err;
     }

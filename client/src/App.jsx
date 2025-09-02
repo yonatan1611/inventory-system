@@ -1,13 +1,12 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { AuthProvider, useAuth } from './contexts/authContext';
+import { AuthProvider, useAuth } from './contexts/AuthContext';
 import Navbar from './components/common/Navbar';
 import Sidebar from './components/common/Sidebar';
 import Login from './pages/Login';
-//import Dashboard from './pages/Dashboard';
 import Products from './pages/Products';
-//import Transactions from './pages/Transactions';
-//import Reports from './pages/Reports';
+import ErrorBoundary from './components/error/ErrorBoundary';
+
 
 function ProtectedRoute({ children }) {
   const { user } = useAuth();
@@ -29,6 +28,7 @@ function AppContent() {
         <main className="flex-1 overflow-x-hidden overflow-y-auto ml-64 mt-16 p-6">
           <Routes>
             {/* <Route path="/" element={<Dashboard />} /> */}
+
             <Route path="/products" element={<Products />} />
             {/* <Route path="/transactions" element={<Transactions />} /> */}
             {/* <Route path="/reports" element={<Reports />} /> */}
@@ -44,14 +44,16 @@ function App() {
     <AuthProvider>
       <Router>
         <div className="App">
-          <Routes>
-            <Route path="/login" element={<Login />} />
-            <Route path="*" element={
-              <ProtectedRoute>
-                <AppContent />
-              </ProtectedRoute>
-            } />
-          </Routes>
+          <ErrorBoundary>
+            <Routes>
+              <Route path="/login" element={<Login />} />
+              <Route path="*" element={
+                <ProtectedRoute>
+                  <AppContent />
+                </ProtectedRoute>
+              } />
+            </Routes>
+          </ErrorBoundary>
         </div>
       </Router>
     </AuthProvider>

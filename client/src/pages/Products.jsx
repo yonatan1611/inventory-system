@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import ProductForm from '../components/products/ProductForm';
 import ProductList from '../components/products/ProductList';
 import { useProducts } from '../hooks/useProducts';
+import ErrorBoundary from '../components/error/ErrorBoundary';
 
 const Products = () => {
   const { products, loading, error, createProduct, updateProduct, deleteProduct } = useProducts();
@@ -56,11 +57,13 @@ const Products = () => {
         </button>
       </div>
 
-      <ProductList
-        products={products}
-        onEdit={handleEdit}
-        onDelete={handleDelete}
-      />
+      <ErrorBoundary>
+        <ProductList
+          products={Array.isArray(products) ? products : []}
+          onEdit={handleEdit}
+          onDelete={handleDelete}
+        />
+      </ErrorBoundary>
 
       {isFormOpen && (
         <ProductForm
