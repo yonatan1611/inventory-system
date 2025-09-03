@@ -9,6 +9,7 @@ import TransactionHistory from './pages/TransactionHistory';
 import Reports from './pages/Reports';
 import ErrorBoundary from './components/error/ErrorBoundary';
 import Dashboard from './pages/Dashboard';
+import Layout from './components/common/Layout';
 
 
 function ProtectedRoute({ children }) {
@@ -24,11 +25,11 @@ function AppContent() {
   }
 
   return (
-    <div className="flex h-screen bg-gray-100">
-      <Sidebar />
-      <div className="flex-1 flex flex-col overflow-hidden">
+    <div className="">
+      
+      <div className="">
         <Navbar />
-        <main className="flex-1 overflow-x-hidden overflow-y-auto ml-64 mt-16 p-6">
+        <main className="">
           <Routes>
             <Route path="/" element={<Dashboard />} />
             <Route path="/products" element={<Products />} />
@@ -46,16 +47,20 @@ function App() {
     <AuthProvider>
       <Router>
         <div className="App">
-          <ErrorBoundary>
-            <Routes>
-              <Route path="/login" element={<Login />} />
-              <Route path="*" element={
-                <ProtectedRoute>
-                  <AppContent />
-                </ProtectedRoute>
-              } />
-            </Routes>
-          </ErrorBoundary>
+          
+            <ErrorBoundary>
+              <Routes>
+                <Route path="/login" element={<Login />} />
+                <Route path="*" element={
+                  <ProtectedRoute>
+                    <Layout>
+                      <AppContent />
+                    </Layout>
+                  </ProtectedRoute>
+                } />
+              </Routes>
+            </ErrorBoundary>
+          
         </div>
       </Router>
     </AuthProvider>

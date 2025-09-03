@@ -21,3 +21,15 @@ export const getSalesByProduct = catchAsync(async (req, res) => {
   const summary = await reportService.generateSalesByProduct(startDate, endDate);
   successResponse(res, 200, summary);
 });
+
+// Get sales by month
+export const getSalesByMonth = catchAsync(async (req, res) => {
+  const data = await reportService.generateSalesByMonth();
+  successResponse(res, 200, data);
+});
+
+// Get inventory categories
+export const getInventoryCategories = catchAsync(async (req, res) => {
+  const data = await reportService.generateInventoryCategories();
+  successResponse(res, 200, data);
+});

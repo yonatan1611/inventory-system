@@ -64,5 +64,35 @@ export const reportService = {
     });
 
     return summary;
+  },
+
+  generateSalesByMonth: async () => {
+    const transactions = await Transaction.findAll();
+    const sales = transactions.filter(t => t.type === 'SALE');
+    const monthly = {};
+
+    sales.forEach(sale => {
+      const date = new Date(sale.date);
+      const month = date.toLocaleString('default', { month: 'short', year: 'numeric' }); // e.g., "Jan 2025"
+      if (!monthly[month]) monthly[month] = { name: month, sales: 0, profit: 0 };
+      monthly[month].sales += sale.quantity * sale.product.sellingPrice;
+      monthly[month].profit += (sale.product.sellingPrice - sale.product.costPrice) * sale.quantity;
+    });
+
+    // Return as array sorted by month
+    return Object.values(monthly).sort((a, b) => new Date(a.name) - new Date(b.name));
+  },
+
+  generateInventoryCategories: async () => {
+    const products = await Product.findAll();
+    const categories = {};
+
+    products.forEach(product => {
+      if (!categories[product.category]) categories[product.category] = 0;
+      categories[product.category] += product.quantity * product.costPrice;
+    });
+
+    // Return as array for pie chart
+    return Object.entries(categories).map(([name, value]) => ({ name, value }));
   }
 };
