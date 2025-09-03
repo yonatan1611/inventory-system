@@ -54,6 +54,16 @@ export function useProducts() {
     }
   };
 
+  const sellProduct = async (productId, quantity) => {
+    try {
+      const response = await productsAPI.sell(productId, quantity);
+      await fetchProducts(); // Refresh products after selling
+      return response.data;
+    } catch (err) {
+      throw err;
+    }
+  };
+
   return {
     products,
     loading,
@@ -61,6 +71,7 @@ export function useProducts() {
     createProduct,
     updateProduct,
     deleteProduct,
+    sellProduct, // <-- Add this
     refetch: fetchProducts,
   };
 };

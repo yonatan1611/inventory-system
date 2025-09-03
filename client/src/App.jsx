@@ -5,7 +5,10 @@ import Navbar from './components/common/Navbar';
 import Sidebar from './components/common/Sidebar';
 import Login from './pages/Login';
 import Products from './pages/Products';
+import TransactionHistory from './pages/TransactionHistory';
+import Reports from './pages/Reports';
 import ErrorBoundary from './components/error/ErrorBoundary';
+import Dashboard from './pages/Dashboard';
 
 
 function ProtectedRoute({ children }) {
@@ -27,11 +30,10 @@ function AppContent() {
         <Navbar />
         <main className="flex-1 overflow-x-hidden overflow-y-auto ml-64 mt-16 p-6">
           <Routes>
-            {/* <Route path="/" element={<Dashboard />} /> */}
-
+            <Route path="/" element={<Dashboard />} />
             <Route path="/products" element={<Products />} />
-            {/* <Route path="/transactions" element={<Transactions />} /> */}
-            {/* <Route path="/reports" element={<Reports />} /> */}
+            <Route path="/transactions" element={<TransactionHistory />} />
+            <Route path="/reports" element={<Reports />} />
           </Routes>
         </main>
       </div>

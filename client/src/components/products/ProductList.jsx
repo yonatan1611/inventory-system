@@ -1,7 +1,7 @@
 import React from 'react';
 import ProductItem from './ProductItem';
 
-const ProductList = ({ products, onEdit, onDelete }) => {
+const ProductList = ({ products, onEdit, onDelete, onSell }) => {
   if (products.length === 0) {
     return (
       <div className="bg-white rounded-lg shadow p-6 text-center">
@@ -32,6 +32,7 @@ const ProductList = ({ products, onEdit, onDelete }) => {
                 product={product}
                 onEdit={onEdit}
                 onDelete={onDelete}
+                onSell={onSell}
               />
             ))}
           </tbody>

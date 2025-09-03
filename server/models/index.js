@@ -23,15 +23,22 @@ export const Transaction = {
     orderBy: { date: 'desc' }
   }),
   create: (data) => prisma.transaction.create({ data }),
-  findByDateRange: (startDate, endDate) => prisma.transaction.findMany({
-    where: {
-      date: {
-        gte: new Date(startDate),
-        lte: new Date(endDate)
-      }
-    },
-    include: { product: true }
-  }),
+  findByDateRange: (startDate, endDate) => {
+    const dateFilter = {};
+    if (startDate && !isNaN(new Date(startDate))) {
+      dateFilter.gte = new Date(startDate);
+    }
+    if (endDate && !isNaN(new Date(endDate))) {
+      dateFilter.lte = new Date(endDate);
+    }
+
+    return prisma.transaction.findMany({
+      where: Object.keys(dateFilter).length
+        ? { date: dateFilter }
+        : undefined,
+      include: { product: true }
+    });
+  },
 };
 
 // User model methods

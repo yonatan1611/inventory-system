@@ -49,5 +49,20 @@ export const reportService = {
       totalValue,
       products: valuation
     };
+  },
+
+  generateSalesByProduct: async (startDate, endDate) => {
+    const transactions = await Transaction.findByDateRange(startDate, endDate);
+    const sales = transactions.filter(t => t.type === 'SALE');
+    const summary = {};
+
+    sales.forEach(sale => {
+      const name = sale.product.name;
+      if (!summary[name]) summary[name] = { quantity: 0, profit: 0 };
+      summary[name].quantity += sale.quantity;
+      summary[name].profit += (sale.product.sellingPrice - sale.product.costPrice) * sale.quantity;
+    });
+
+    return summary;
   }
 };

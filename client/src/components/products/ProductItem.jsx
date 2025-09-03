@@ -1,6 +1,6 @@
 import React from 'react';
 
-const ProductItem = ({ product, onEdit, onDelete }) => {
+const ProductItem = ({ product, onEdit, onDelete, onSell }) => {
   return (
     <tr>
       <td className="px-6 py-4 whitespace-nowrap">{product.sku}</td>
@@ -26,9 +26,20 @@ const ProductItem = ({ product, onEdit, onDelete }) => {
         </button>
         <button
           onClick={() => onDelete(product.id)}
-          className="text-red-600 hover:text-red-900"
+          className="text-red-600 hover:text-red-900 mr-2"
         >
           Delete
+        </button>
+        <button
+          onClick={() => {
+            const qty = prompt('Enter quantity to sell:', 1);
+            if (qty && !isNaN(qty) && qty > 0) {
+              onSell(product.id, Number(qty));
+            }
+          }}
+          className="text-green-600 hover:text-green-900"
+        >
+          Sell
         </button>
       </td>
     </tr>

@@ -6,4 +6,5 @@ export const productsAPI = {
   create: (product) => api.post('/products', product),
   update: (id, product) => api.put(`/products/${id}`, product),
   delete: (id) => api.delete(`/products/${id}`),
+  sell: (productId, quantity) => api.post('/transactions/sell', { productId, quantity }),
 };

@@ -5,7 +5,7 @@ import ProductList from '../components/products/ProductList';
 import { useProducts } from '../hooks/useProducts';
 
 const Products = () => {
-  const { products, loading, error, createProduct, updateProduct, deleteProduct, refetch } = useProducts();
+  const { products, loading, error, createProduct, updateProduct, deleteProduct, sellProduct, refetch } = useProducts();
   const [editingProduct, setEditingProduct] = useState(null);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [notification, setNotification] = useState({ type: '', message: '' });
@@ -50,6 +50,21 @@ const Products = () => {
       } catch (err) {
         setNotification({ type: 'error', message: err.response?.data?.message || 'Failed to delete product' });
       }
+    }
+  };
+
+  const handleSell = async (productId, quantity) => {
+    try {
+      const result = await sellProduct(productId, quantity);
+      setNotification({
+        type: 'success',
+        message: `Product sold! Profit: $${result.profit.toFixed(2)}`
+      });
+    } catch (err) {
+      setNotification({
+        type: 'error',
+        message: err.response?.data?.message || 'Failed to sell product'
+      });
     }
   };
 
@@ -103,6 +118,7 @@ const Products = () => {
           products={products}
           onEdit={handleEdit}
           onDelete={handleDelete}
+          onSell={handleSell}
         />
       )}
 

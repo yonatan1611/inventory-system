@@ -1,5 +1,6 @@
 import { transactionService } from '../services/transactionService.js';
 import { catchAsync, successResponse } from '../utils/helpers.js';
+import { Product } from '../models/index.js';
 
 // Get all transactions
 export const getTransactions = catchAsync(async (req, res) => {
