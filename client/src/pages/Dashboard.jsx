@@ -18,6 +18,7 @@ const Dashboard = () => {
   const [salesData, setSalesData] = useState([]);
   const [inventoryData, setInventoryData] = useState([]);
   const [activeTab, setActiveTab] = useState('overview');
+  const [recentTransactions, setRecentTransactions] = useState([]);
 
   useEffect(() => {
     Promise.all([
@@ -25,19 +26,19 @@ const Dashboard = () => {
       api.get('/transactions'),
       api.get('/reports/profit-loss'),
       api.get('/reports/inventory-valuation'),
-      api.get('/reports/sales-by-month'), // <-- expects [{ name: 'Jan', sales: 4000, profit: 2400 }, ...]
-      api.get('/reports/inventory-categories'), // <-- expects [{ name: 'Electronics', value: 400 }, ...]
+      api.get('/reports/sales-by-month'),
+      api.get('/reports/inventory-categories'),
     ]).then(([productsRes, transactionsRes, profitRes, inventoryRes, salesRes, inventoryCatRes]) => {
       setStats({
         products: productsRes.data.data.length,
         transactions: transactionsRes.data.data.length,
-        totalProfit: profitRes.data.data.profit || 0, // <-- FIXED HERE
+        totalProfit: profitRes.data.data.profit || 0,
         inventoryValue: inventoryRes.data.data.totalValue || 0,
       });
 
-      // Use actual API data
       setSalesData(Array.isArray(salesRes.data.data) ? salesRes.data.data : []);
       setInventoryData(Array.isArray(inventoryCatRes.data.data) ? inventoryCatRes.data.data : []);
+      setRecentTransactions(Array.isArray(transactionsRes.data.data) ? transactionsRes.data.data.slice(0, 5) : []);
     }).finally(() => {
       setTimeout(() => setLoading(false), 500);
     });
@@ -53,6 +54,23 @@ const Dashboard = () => {
       </div>
     </div>
   );
+
+  const handleAddProduct = () => {
+    // Example: redirect to add product page
+    window.location.href = '/products/new';
+  };
+
+  const handleCreateTransaction = () => {
+    window.location.href = '/transactions/new';
+  };
+
+  const handleGenerateReport = () => {
+    window.location.href = '/reports';
+  };
+
+  const handleViewNotifications = () => {
+    window.location.href = '/notifications';
+  };
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -306,20 +324,22 @@ const Dashboard = () => {
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
-                  {[1, 2, 3, 4, 5].map((item) => (
-                    <tr key={item} className="transition-colors hover:bg-gray-50">
+                  {recentTransactions.map((tx) => (
+                    <tr key={tx._id} className="transition-colors hover:bg-gray-50">
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                        Product {item}
+                        {tx.product?.name || 'N/A'}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        May {10 + item}, 2023
+                        {new Date(tx.date).toLocaleDateString()}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        ${(100 * item).toFixed(2)}
+                        ${tx.product?.sellingPrice && tx.quantity ? (tx.product.sellingPrice * tx.quantity).toFixed(2) : '0.00'}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
-                          Completed
+                        <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                          tx.status === 'Completed' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'
+                        }`}>
+                          {tx.status || 'Pending'}
                         </span>
                       </td>
                     </tr>
@@ -333,7 +353,10 @@ const Dashboard = () => {
           <div className="bg-white rounded-xl shadow-lg p-6">
             <h2 className="text-xl font-semibold text-gray-800 mb-4">Quick Actions</h2>
             <div className="space-y-4">
-              <button className="w-full flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
+              <button
+                className="w-full flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+                onClick={handleAddProduct}
+              >
                 <div className="flex items-center">
                   <div className="rounded-full bg-blue-100 p-3 mr-3">
                     <svg className="w-5 h-5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -347,7 +370,10 @@ const Dashboard = () => {
                 </svg>
               </button>
               
-              <button className="w-full flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
+              <button
+                className="w-full flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+                onClick={handleCreateTransaction}
+              >
                 <div className="flex items-center">
                   <div className="rounded-full bg-green-100 p-3 mr-3">
                     <svg className="w-5 h-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -361,7 +387,10 @@ const Dashboard = () => {
                 </svg>
               </button>
               
-              <button className="w-full flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
+              <button
+                className="w-full flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+                onClick={handleGenerateReport}
+              >
                 <div className="flex items-center">
                   <div className="rounded-full bg-purple-100 p-3 mr-3">
                     <svg className="w-5 h-5 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -375,7 +404,10 @@ const Dashboard = () => {
                 </svg>
               </button>
               
-              <button className="w-full flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
+              <button
+                className="w-full flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+                onClick={handleViewNotifications}
+              >
                 <div className="flex items-center">
                   <div className="rounded-full bg-orange-100 p-3 mr-3">
                     <svg className="w-5 h-5 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">

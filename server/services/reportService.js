@@ -58,12 +58,14 @@ export const reportService = {
 
     sales.forEach(sale => {
       const name = sale.product.name;
-      if (!summary[name]) summary[name] = { quantity: 0, profit: 0 };
+      if (!summary[name]) summary[name] = { name, quantity: 0, revenue: 0, profit: 0 };
       summary[name].quantity += sale.quantity;
+      summary[name].revenue += sale.quantity * sale.product.sellingPrice;
       summary[name].profit += (sale.product.sellingPrice - sale.product.costPrice) * sale.quantity;
     });
 
-    return summary;
+    // Return as array for frontend compatibility
+    return Object.values(summary);
   },
 
   generateSalesByMonth: async () => {
