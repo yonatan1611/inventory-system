@@ -20,3 +20,26 @@ export const createTransaction = catchAsync(async (req, res) => {
   
   successResponse(res, 201, transaction, 'Transaction recorded successfully');
 });
+
+export const sellProduct = catchAsync(async (req, res) => {
+  const { productId, quantity } = req.body;
+  const product = await Product.findById(productId);
+
+  if (!product) {
+    throw new APIError('Product not found', 404);
+  }
+  if (product.quantity < quantity) {
+    throw new APIError('Insufficient stock', 400);
+  }
+
+  const profit = (product.sellingPrice - product.costPrice) * quantity;
+
+  const transaction = await transactionService.createTransaction({
+    type: 'SALE',
+    productId,
+    quantity,
+    notes: `Profit: ${profit}`,
+  });
+
+  successResponse(res, 201, { transaction, profit }, 'Product sold and profit recorded');
+});

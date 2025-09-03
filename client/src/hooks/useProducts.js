@@ -10,8 +10,9 @@ export function useProducts() {
     setLoading(true);
     try {
       const response = await productsAPI.getAll();
-      const { data } = response;
-      setProducts(Array.isArray(data) ? data : []);
+      // Fix: get the array from response.data.data
+      const productsArray = Array.isArray(response.data.data) ? response.data.data : [];
+      setProducts(productsArray);
     } catch (err) {
       setError(err.message);
     } finally {

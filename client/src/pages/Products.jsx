@@ -1,13 +1,20 @@
-import React, { useState } from 'react';
+// src/pages/Products.jsx
+import React, { useState, useEffect } from 'react';
 import ProductForm from '../components/products/ProductForm';
 import ProductList from '../components/products/ProductList';
 import { useProducts } from '../hooks/useProducts';
-import ErrorBoundary from '../components/error/ErrorBoundary';
 
 const Products = () => {
-  const { products, loading, error, createProduct, updateProduct, deleteProduct } = useProducts();
+  const { products, loading, error, createProduct, updateProduct, deleteProduct, refetch } = useProducts();
   const [editingProduct, setEditingProduct] = useState(null);
   const [isFormOpen, setIsFormOpen] = useState(false);
+  const [notification, setNotification] = useState({ type: '', message: '' });
+
+  useEffect(() => {
+    if (error) {
+      setNotification({ type: 'error', message: error });
+    }
+  }, [error]);
 
   const handleCreate = () => {
     setEditingProduct(null);
@@ -23,12 +30,15 @@ const Products = () => {
     try {
       if (editingProduct) {
         await updateProduct(editingProduct.id, productData);
+        setNotification({ type: 'success', message: 'Product updated successfully' });
       } else {
         await createProduct(productData);
+        setNotification({ type: 'success', message: 'Product created successfully' });
       }
       setIsFormOpen(false);
+      setEditingProduct(null);
     } catch (err) {
-      console.error('Failed to save product:', err);
+      setNotification({ type: 'error', message: err.response?.data?.message || 'Failed to save product' });
     }
   };
 
@@ -36,14 +46,19 @@ const Products = () => {
     if (window.confirm('Are you sure you want to delete this product?')) {
       try {
         await deleteProduct(id);
+        setNotification({ type: 'success', message: 'Product deleted successfully' });
       } catch (err) {
-        console.error('Failed to delete product:', err);
+        setNotification({ type: 'error', message: err.response?.data?.message || 'Failed to delete product' });
       }
     }
   };
 
-  if (loading) return <div className="flex justify-center items-center h-64">Loading...</div>;
-  if (error) return <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">Error: {error}</div>;
+  const handleRetry = () => {
+    setNotification({ type: '', message: '' });
+    refetch();
+  };
+
+  if (loading) return <div className="flex justify-center items-center h-64">Loading products...</div>;
 
   return (
     <div className="container mx-auto px-4 py-6">
@@ -51,25 +66,54 @@ const Products = () => {
         <h1 className="text-2xl font-bold text-gray-800">Products</h1>
         <button
           onClick={handleCreate}
-          className="bg-accent text-white px-4 py-2 rounded-md hover:bg-blue-600 flex items-center"
+          className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 flex items-center"
         >
           <i className="bi bi-plus-circle mr-2"></i> Add Product
         </button>
       </div>
 
-      <ErrorBoundary>
+      {notification.message && (
+        <div className={`mb-4 p-4 rounded-md ${
+          notification.type === 'error' ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'
+        }`}>
+          {notification.message}
+          {notification.type === 'error' && (
+            <button
+              onClick={handleRetry}
+              className="ml-4 text-blue-600 hover:text-blue-800 underline"
+            >
+              Retry
+            </button>
+          )}
+        </div>
+      )}
+
+      {error ? (
+        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
+          Failed to load products: {error}
+          <button
+            onClick={handleRetry}
+            className="ml-4 text-blue-600 hover:text-blue-800 underline"
+          >
+            Retry
+          </button>
+        </div>
+      ) : (
         <ProductList
-          products={Array.isArray(products) ? products : []}
+          products={products}
           onEdit={handleEdit}
           onDelete={handleDelete}
         />
-      </ErrorBoundary>
+      )}
 
       {isFormOpen && (
         <ProductForm
           product={editingProduct}
           onSubmit={handleSubmit}
-          onCancel={() => setIsFormOpen(false)}
+          onCancel={() => {
+            setIsFormOpen(false);
+            setEditingProduct(null);
+          }}
         />
       )}
     </div>
