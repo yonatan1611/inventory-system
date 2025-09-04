@@ -45,17 +45,28 @@ export default function Navbar() {
         <div className="flex items-center justify-between h-16">
           {/* Left: brand */}
           <div className="flex items-center gap-4">
-            <Link to="/" className="flex items-center gap-3">
-              <div className="px-5 h-12 rounded-full bg-gradient-to-r from-purple-400 via-indigo-500 to-purple-500 flex items-center shadow-lg border-2 border-white">
-                <span className="font-extrabold text-lg text-white tracking-wide drop-shadow-lg">FERE CLOTH</span>
-                <svg className="w-6 h-6 ml-2 text-white opacity-80" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-                  <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2" />
-                  <path d="M8 12h8M12 8v8" strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
+            <Link to="/" className="flex items-center gap-3 group">
+  {/* Logo mark with improved design */}
+              <div className="relative p-1.5">
+                <div className="absolute inset-0 bg-gradient-to-r from-purple-500 to-indigo-600 rounded-full transform group-hover:scale-105 transition-all duration-300"></div>
+                <div className="relative h-10 w-10 rounded-full bg-white flex items-center justify-center shadow-md">
+                  <svg className="w-5 h-5 text-indigo-600" viewBox="0 0 24 24" fill="none">
+                    <path d="M12 4L4 8V18L12 22L20 18V8L12 4Z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round"/>
+                    <path d="M12 4V22" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round"/>
+                    <path d="M4 8L20 8" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round"/>
+                    <path d="M4 18L20 18" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round"/>
+                  </svg>
+                </div>
               </div>
-              <div className="hidden sm:block">
-                <div className="text-xl font-extrabold text-gray-900 tracking-tight">FERE CLOTH</div>
-                <div className="text-xs text-gray-500">Manage your store</div>
+              
+              {/* Text portion */}
+              <div className="flex flex-col">
+                <div className="text-xl font-bold text-gray-900 tracking-tight">
+                  <span className="bg-clip-text text-transparent bg-gradient-to-r from-purple-600 to-indigo-600">
+                    FERE CLOTH
+                  </span>
+                </div>
+                <div className="text-xs text-gray-500 font-medium tracking-wide">Premium Fashion Management</div>
               </div>
             </Link>
           </div>

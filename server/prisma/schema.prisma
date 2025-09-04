@@ -17,6 +17,7 @@ model Product {
   sku          String        @unique
   updatedAt    DateTime      @updatedAt
   id           Int           @id @default(autoincrement())
+  archived     Boolean       @default(false)
   transactions Transaction[]
 }
 

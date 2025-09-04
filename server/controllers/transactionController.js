@@ -1,6 +1,6 @@
 import { transactionService } from '../services/transactionService.js';
 import { catchAsync, successResponse } from '../utils/helpers.js';
-import { Product } from '../models/index.js';
+import { prisma } from '../prismaClient.js'; // <-- use your prisma client
 
 // Get all transactions
 export const getTransactions = catchAsync(async (req, res) => {
@@ -11,36 +11,65 @@ export const getTransactions = catchAsync(async (req, res) => {
 // Create transaction
 export const createTransaction = catchAsync(async (req, res) => {
   const { type, productId, quantity, notes } = req.body;
-  
+
+  if (!productId || isNaN(productId)) {
+    return res.status(400).json({ message: 'Valid productId is required' });
+  }
+
   const transaction = await transactionService.createTransaction({
     type,
-    productId: parseInt(productId),
-    quantity: parseInt(quantity),
-    notes
+    productId: Number(productId),
+    quantity: Number(quantity),
+    notes,
   });
-  
+
   successResponse(res, 201, transaction, 'Transaction recorded successfully');
 });
 
+// controllers/transactionController.js
 export const sellProduct = catchAsync(async (req, res) => {
-  const { productId, quantity } = req.body;
-  const product = await Product.findById(productId);
+  const { productId, quantity, discount = 0 } = req.body;
 
-  if (!product) {
-    throw new APIError('Product not found', 404);
-  }
-  if (product.quantity < quantity) {
-    throw new APIError('Insufficient stock', 400);
+  if (!productId || isNaN(productId)) {
+    return res.status(400).json({ message: 'Valid productId is required' });
   }
 
-  const profit = (product.sellingPrice - product.costPrice) * quantity;
-
-  const transaction = await transactionService.createTransaction({
-    type: 'SALE',
-    productId,
-    quantity,
-    notes: `Profit: ${profit}`,
+  const product = await prisma.product.findUnique({
+    where: { id: Number(productId) },
   });
 
-  successResponse(res, 201, { transaction, profit }, 'Product sold and profit recorded');
+  if (!product) {
+    return res.status(404).json({ message: 'Product not found' });
+  }
+
+  if (product.quantity < quantity) {
+    return res.status(400).json({ message: 'Insufficient stock' });
+  }
+
+  // Calculate discounted price and profit
+  const discountedPrice = product.sellingPrice * (1 - discount / 100);
+  const profit = (discountedPrice - product.costPrice) * Number(quantity);
+
+  // Record transaction
+  const transaction = await prisma.transaction.create({
+    data: {
+      type: 'SALE',
+      productId: Number(productId),
+      quantity: Number(quantity),
+      notes: `Sold with ${discount}% discount. Profit: $${profit.toFixed(2)}`,
+    },
+  });
+
+  // Update product stock
+  await prisma.product.update({
+    where: { id: Number(productId) },
+    data: { quantity: product.quantity - Number(quantity) },
+  });
+
+  successResponse(
+    res,
+    201,
+    { transaction, profit },
+    'Product sold successfully'
+  );
 });

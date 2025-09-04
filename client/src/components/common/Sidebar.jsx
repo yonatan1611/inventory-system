@@ -11,11 +11,13 @@ import {
   LogOut,
   Settings,
   User,
+  DollarSign,
 } from 'lucide-react';
 
 const menuItems = [
   { path: '/', Icon: Home, label: 'Dashboard' },
   { path: '/products', Icon: Box, label: 'Products' },
+  { path: '/sales', Icon: DollarSign, label: 'Sales' },
   { path: '/transactions', Icon: Repeat, label: 'Transactions' },
   { path: '/reports', Icon: BarChart2, label: 'Reports' },
 ];

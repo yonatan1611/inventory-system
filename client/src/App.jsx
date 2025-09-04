@@ -10,6 +10,7 @@ import Reports from './pages/Reports';
 import ErrorBoundary from './components/error/ErrorBoundary';
 import Dashboard from './pages/Dashboard';
 import Layout from './components/common/Layout';
+import Sales from './pages/sales';
 
 
 function ProtectedRoute({ children }) {
@@ -31,6 +32,7 @@ function AppContent() {
         <Navbar />
         <main className="">
           <Routes>
+            <Route path="/sales" element={<Sales />} />
             <Route path="/" element={<Dashboard />} />
             <Route path="/products" element={<Products />} />
             <Route path="/transactions" element={<TransactionHistory />} />

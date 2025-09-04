@@ -6,7 +6,7 @@ import ProductList from '../components/products/ProductList';
 import { useProducts } from '../hooks/useProducts';
 
 export default function Products() {
-  const { products, loading, error, createProduct, updateProduct, deleteProduct, sellProduct, refetch } = useProducts();
+  const { products, loading, error, createProduct, updateProduct, deleteProduct, refetch } = useProducts();
 
   const [query, setQuery] = useState('');
   const [editingProduct, setEditingProduct] = useState(null);
@@ -67,16 +67,18 @@ export default function Products() {
     }
   };
 
-  const handleSell = async (productId, qty = 1) => {
-    try {
-      const result = await sellProduct(productId, qty);
-      showToast('success', `Sold x${qty}. Profit: $${(result.profit ?? 0).toFixed(2)}`);
-      refetch?.();
-    } catch (err) {
-      console.error(err);
-      showToast('error', err?.response?.data?.message || 'Failed to sell product');
-    }
-  };
+  /* Confirm delete modal */
+useEffect(() => {
+  if (confirmDelete !== null) {
+    const onKey = (e) => {
+      if (e.key === 'Escape') setConfirmDelete(null);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }
+  // no cleanup if modal not open
+}, [confirmDelete]);
+
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -187,7 +189,7 @@ export default function Products() {
 
                   <div className="flex items-center gap-2">
                     <button onClick={() => openEdit(p)} className="px-2 py-1 rounded border hover:bg-slate-50"><Edit3 className="w-4 h-4" /></button>
-                    <button onClick={() => handleSell(p.id, 1)} className="px-2 py-1 rounded bg-emerald-600 text-white hover:bg-emerald-700"><DollarSign className="w-4 h-4" /></button>
+                    
                     <button onClick={() => setConfirmDelete(p.id)} className="px-2 py-1 rounded border hover:bg-slate-50 text-rose-600"><Trash2 className="w-4 h-4" /></button>
                   </div>
                 </div>
@@ -227,21 +229,35 @@ export default function Products() {
       </AnimatePresence>
 
       {/* Confirm delete modal */}
-      <AnimatePresence>
-        {confirmDelete && (
-          <motion.div className="fixed inset-0 z-50 flex items-center justify-center p-4" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-            <div className="w-full max-w-md bg-white dark:bg-slate-900 rounded-2xl p-6 shadow-lg">
-              <div className="text-lg font-semibold mb-4">Confirm delete</div>
-              <div className="text-sm text-slate-500 mb-6">Are you sure you want to delete this product? This action cannot be undone.</div>
-              <div className="flex items-center justify-end gap-3">
-                <button onClick={() => setConfirmDelete(null)} className="px-3 py-2 rounded border">Cancel</button>
-                <button onClick={() => handleDelete(confirmDelete)} className="px-3 py-2 rounded bg-rose-600 text-white">Delete</button>
-              </div>
-            </div>
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 0.35 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-black/40" />
-          </motion.div>
-        )}
-      </AnimatePresence>
+     <AnimatePresence>
+  {confirmDelete !== null && ( // render even if id is 0
+    <motion.div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+    >
+      {/* Backdrop first (lower z) — clicking it closes the modal */}
+      <motion.div
+        onClick={() => setConfirmDelete(null)}
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 0.35 }}
+        exit={{ opacity: 0 }}
+        className="fixed inset-0 bg-black/40 z-40"
+      />
+
+      {/* Modal box (higher z so it's above the backdrop) */}
+      <div className="relative z-50 w-full max-w-md bg-white :bg-slate-900 rounded-2xl p-6 shadow-lg">
+        <div className="text-lg font-semibold mb-4">Confirm delete</div>
+        <div className="text-sm text-slate-500 mb-6">Are you sure you want to delete this product? This action cannot be undone.</div>
+        <div className="flex items-center justify-end gap-3">
+          <button onClick={() => setConfirmDelete(null)} className="px-3 py-2 rounded border">Cancel</button>
+          <button onClick={() => handleDelete(confirmDelete)} className="px-3 py-2 rounded bg-rose-600 text-white">Delete</button>
+        </div>
+      </div>
+    </motion.div>
+  )}
+</AnimatePresence>
     </div>
   );
 }

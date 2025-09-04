@@ -1,20 +1,25 @@
+// src/hooks/useProducts.js
 import { useState, useEffect } from 'react';
 import { productsAPI } from '../services/products';
 
 export function useProducts() {
-  const [products, setProducts] = useState([]); // <-- Make sure this is an array
+  const [products, setProducts] = useState([]); // always an array
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
   const fetchProducts = async () => {
     setLoading(true);
+    setError(null);
     try {
       const response = await productsAPI.getAll();
-      // Fix: get the array from response.data.data
-      const productsArray = Array.isArray(response.data.data) ? response.data.data : [];
+      const data = response?.data?.data;
+      const productsArray = Array.isArray(data) ? data : [];
       setProducts(productsArray);
+      return productsArray;
     } catch (err) {
-      setError(err.message);
+      const msg = err?.response?.data?.message || err.message || 'Failed to fetch products';
+      setError(msg);
+      throw err;
     } finally {
       setLoading(false);
     }
@@ -22,15 +27,24 @@ export function useProducts() {
 
   useEffect(() => {
     fetchProducts();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const createProduct = async (product) => {
     try {
       const response = await productsAPI.create(product);
-      const newProduct = response.data;
-      setProducts(prev => Array.isArray(prev) ? [...prev, newProduct] : [newProduct]);
+      // handle both shapes: { data: product } or { data: { data: product } }
+      const newProduct = response?.data?.data ?? response?.data ?? null;
+      if (newProduct) {
+        setProducts(prev => Array.isArray(prev) ? [...prev, newProduct] : [newProduct]);
+      } else {
+        // fallback: refetch if shape unexpected
+        await fetchProducts();
+      }
       return newProduct;
     } catch (err) {
+      const msg = err?.response?.data?.message || err.message || 'Create failed';
+      setError(msg);
       throw err;
     }
   };
@@ -38,31 +52,49 @@ export function useProducts() {
   const updateProduct = async (id, product) => {
     try {
       const response = await productsAPI.update(id, product);
-      setProducts(prev => prev.map(p => p.id === id ? response.data : p));
-      return response.data;
+      const updated = response?.data?.data ?? response?.data ?? null;
+      if (updated) {
+        setProducts(prev => prev.map(p => (p.id === id ? updated : p)));
+      } else {
+        await fetchProducts();
+      }
+      return updated;
     } catch (err) {
+      const msg = err?.response?.data?.message || err.message || 'Update failed';
+      setError(msg);
       throw err;
     }
   };
 
   const deleteProduct = async (id) => {
     try {
-      await productsAPI.delete(id);
+      const response = await productsAPI.delete(id);
+      // If backend returns deleted id or message, just remove by id locally
       setProducts(prev => prev.filter(p => p.id !== id));
+      return response?.data ?? null;
     } catch (err) {
+      const msg = err?.response?.data?.message || err.message || 'Delete failed';
+      setError(msg);
       throw err;
     }
   };
 
-  const sellProduct = async (productId, quantity) => {
-    try {
-      const response = await productsAPI.sell(productId, quantity);
-      await fetchProducts(); // Refresh products after selling
-      return response.data;
-    } catch (err) {
-      throw err;
-    }
-  };
+  const sellProduct = async (productId, quantity = 1, options = {}) => {
+  try {
+    // Include discount in the request
+    const response = await productsAPI.sell({ 
+      productId, 
+      quantity, 
+      discount: options.discount || 0 
+    });
+    await fetchProducts();
+    return response?.data?.data ?? response?.data ?? response;
+  } catch (err) {
+    const msg = err?.response?.data?.message || err.message || 'Sell failed';
+    setError(msg);
+    throw err;
+  }
+};
 
   return {
     products,
@@ -71,7 +103,7 @@ export function useProducts() {
     createProduct,
     updateProduct,
     deleteProduct,
-    sellProduct, // <-- Add this
+    sellProduct,
     refetch: fetchProducts,
   };
-};
+}

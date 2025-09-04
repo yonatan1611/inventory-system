@@ -81,7 +81,7 @@ const Dashboard = () => {
       >
         <div className="absolute inset-0 bg-black opacity-50"></div>
         <div className="relative z-10 container mx-auto px-4 h-full flex flex-col justify-center text-white">
-          <h1 className="text-4xl md:text-5xl font-bold mb-4 animate-fade-in">Business Intelligence Dashboard</h1>
+          <h1 className="text-4xl md:text-5xl font-bold mb-4 animate-fade-in">Ferehiwot Zeleke Store Management</h1>
           <p className="text-lg md:text-xl max-w-2xl mb-8 animate-fade-in delay-100">
             Get real-time insights into your inventory, sales performance, and business growth
           </p>
