@@ -119,11 +119,11 @@ const ProductForm = ({ product, onSubmit, onCancel }) => {
     // Product validation
     if (!formData.name.trim()) newErrors.name = 'Product name is required';
     if (!formData.category.trim()) newErrors.category = 'Category is required';
-    if (!formData.baseSku.trim()) newErrors.baseSku = 'Base SKU is required';
+    //if (!formData.baseSku.trim()) newErrors.baseSku = 'Base SKU is required';
     
     // Variants validation
     formData.variants.forEach((variant, index) => {
-      if (!variant.sku.trim()) newErrors[`variant-${index}-sku`] = 'Variant SKU is required';
+      //if (!variant.sku.trim()) newErrors[`variant-${index}-sku`] = 'Variant SKU is required';
       if (!variant.costPrice || parseFloat(variant.costPrice) <= 0) 
         newErrors[`variant-${index}-costPrice`] = 'Valid cost price is required';
       if (!variant.sellingPrice || parseFloat(variant.sellingPrice) <= 0) 
@@ -225,23 +225,6 @@ const ProductForm = ({ product, onSubmit, onCancel }) => {
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Base SKU <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  name="baseSku"
-                  value={formData.baseSku}
-                  onChange={handleChange}
-                  className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
-                    errors.baseSku ? 'border-red-500' : 'border-gray-300'
-                  }`}
-                  placeholder="e.g., PROD-001"
-                />
-                {errors.baseSku && <p className="mt-1 text-sm text-red-500">{errors.baseSku}</p>}
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
                   Description
                 </label>
                 <textarea
@@ -283,24 +266,6 @@ const ProductForm = ({ product, onSubmit, onCancel }) => {
                 )}
                 
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Variant SKU <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      type="text"
-                      value={variant.sku}
-                      onChange={(e) => handleVariantChange(index, 'sku', e.target.value)}
-                      className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-1 focus:ring-indigo-500 ${
-                        errors[`variant-${index}-sku`] ? 'border-red-500' : 'border-gray-300'
-                      }`}
-                      placeholder="Variant SKU"
-                    />
-                    {errors[`variant-${index}-sku`] && (
-                      <p className="mt-1 text-xs text-red-500">{errors[`variant-${index}-sku`]}</p>
-                    )}
-                  </div>
-                  
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                       Color

@@ -166,84 +166,89 @@ export default function Products() {
       ) : (
         <>
           {/* Grid / List of products */}
-          <div className="bg-white rounded-lg shadow overflow-hidden">
-            {pageItems.map(product => (
-              <div key={product.id} className="border-b border-slate-100 last:border-b-0">
-                {/* Product header */}
-                <div className="p-4 flex items-center justify-between hover:bg-slate-50 cursor-pointer" onClick={() => toggleExpand(product.id)}>
-                  <div className="flex items-center gap-3">
-                    <button className="text-slate-500">
-                      {expandedProducts.has(product.id) ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
-                    </button>
-                    <div className="flex-shrink-0 h-10 w-10 bg-indigo-100 rounded-lg flex items-center justify-center">
-                      <span className="text-indigo-600 font-medium">
-                        {product.name.charAt(0).toUpperCase()}
-                      </span>
-                    </div>
-                    <div>
-                      <div className="font-medium text-slate-900">{product.name}</div>
-                      <div className="text-sm text-slate-500">
-                        Base SKU: {product.baseSku || '—'} • {product.variants?.length || 0} variants
-                      </div>
-                    </div>
-                  </div>
-                  
-                  <div className="flex items-center gap-4">
-                    <div className="text-right">
-                      <div className="text-sm text-slate-500">Total stock</div>
-                      <div className="font-medium">{getTotalStock(product)}</div>
-                    </div>
-                    
-                    <div className="flex items-center gap-2">
-                      <button onClick={(e) => { e.stopPropagation(); openEdit(product); }} className="p-1 text-indigo-600 hover:text-indigo-900 rounded hover:bg-indigo-50">
-                        <Edit3 className="w-4 h-4" />
-                      </button>
-                      <button onClick={(e) => { e.stopPropagation(); setConfirmDelete(product.id); }} className="p-1 text-rose-600 hover:text-rose-900 rounded hover:bg-rose-50">
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </div>
+
+<div className="bg-white rounded-lg shadow overflow-hidden">
+  {pageItems.map(product => (
+    <div key={product.id} className="border-b border-slate-100 last:border-b-0">
+      {/* Product header */}
+      <div className="p-4 flex items-center justify-between hover:bg-slate-50 cursor-pointer" onClick={() => toggleExpand(product.id)}>
+        <div className="flex items-center gap-3">
+          <button className="text-slate-500">
+            {expandedProducts.has(product.id) ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+          </button>
+          <div className="flex-shrink-0 h-10 w-10 bg-indigo-100 rounded-lg flex items-center justify-center">
+            <span className="text-indigo-600 font-medium">
+              {product.name.charAt(0).toUpperCase()}
+            </span>
+          </div>
+          <div>
+            <div className="font-medium text-slate-900">{product.name}</div>
+            {/* Add this line for base SKU */}
+            <div className="text-sm text-slate-500">
+              Base SKU: {product.baseSku || '—'} • {product.variants?.length || 0} variants
+            </div>
+          </div>
+        </div>
+        
+        <div className="flex items-center gap-4">
+          <div className="text-right">
+            <div className="text-sm text-slate-500">Total stock</div>
+            <div className="font-medium">
+              {product.variants?.reduce((total, variant) => total + (variant.quantity || 0), 0) || 0}
+            </div>
+          </div>
+          
+          <div className="flex items-center gap-2">
+            <button onClick={(e) => { e.stopPropagation(); openEdit(product); }} className="p-1 text-indigo-600 hover:text-indigo-900 rounded hover:bg-indigo-50">
+              <Edit3 className="w-4 h-4" />
+            </button>
+            <button onClick={(e) => { e.stopPropagation(); setConfirmDelete(product.id); }} className="p-1 text-rose-600 hover:text-rose-900 rounded hover:bg-rose-50">
+              <Trash2 className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Variants list */}
+      {expandedProducts.has(product.id) && (
+        <div className="bg-slate-50 border-t border-slate-200">
+          {product.variants?.map(variant => (
+            <div key={variant.id} className="px-4 py-3 border-b border-slate-200 last:border-b-0">
+              <div className="flex items-center justify-between">
+                <div>
+                  {/* Add this line for variant SKU */}
+                  <div className="font-medium">Variant: {variant.sku}</div>
+                  <div className="text-sm text-slate-500">
+                    {variant.color && `Color: ${variant.color}`}
+                    {variant.color && variant.size && ' • '}
+                    {variant.size && `Size: ${variant.size}`}
                   </div>
                 </div>
-
-                {/* Variants list */}
-                {expandedProducts.has(product.id) && (
-                  <div className="bg-slate-50 border-t border-slate-200">
-                    {product.variants?.map(variant => (
-                      <div key={variant.id} className="px-4 py-3 border-b border-slate-200 last:border-b-0">
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <div className="font-medium">Variant: {variant.sku}</div>
-                            <div className="text-sm text-slate-500">
-                              {variant.color && `Color: ${variant.color}`}
-                              {variant.color && variant.size && ' • '}
-                              {variant.size && `Size: ${variant.size}`}
-                            </div>
-                          </div>
-                          
-                          <div className="flex items-center gap-6">
-                            <div className="text-right">
-                              <div className="text-sm text-slate-500">Cost</div>
-                              <div className="font-medium">${typeof variant.costPrice === 'number' ? variant.costPrice.toFixed(2) : '0.00'}</div>
-                            </div>
-                            
-                            <div className="text-right">
-                              <div className="text-sm text-slate-500">Price</div>
-                              <div className="font-medium">${typeof variant.sellingPrice === 'number' ? variant.sellingPrice.toFixed(2) : '0.00'}</div>
-                            </div>
-                            
-                            <div className="text-right">
-                              <div className="text-sm text-slate-500">Stock</div>
-                              <div className="font-medium">{variant.quantity || 0}</div>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
+                
+                <div className="flex items-center gap-6">
+                  <div className="text-right">
+                    <div className="text-sm text-slate-500">Cost</div>
+                    <div className="font-medium">${typeof variant.costPrice === 'number' ? variant.costPrice.toFixed(2) : '0.00'}</div>
                   </div>
-                )}
+                  
+                  <div className="text-right">
+                    <div className="text-sm text-slate-500">Price</div>
+                    <div className="font-medium">${typeof variant.sellingPrice === 'number' ? variant.sellingPrice.toFixed(2) : '0.00'}</div>
+                  </div>
+                  
+                  <div className="text-right">
+                    <div className="text-sm text-slate-500">Stock</div>
+                    <div className="font-medium">{variant.quantity || 0}</div>
+                  </div>
+                </div>
               </div>
-            ))}
-          </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  ))}
+</div>
 
           {/* Pagination controls */}
           <div className="mt-6 flex items-center justify-between">

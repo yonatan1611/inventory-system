@@ -8,4 +8,5 @@ export const productsAPI = {
   update: (id, product) => api.put(`/products/${id}`, product),
   delete: (id) => api.delete(`/products/${id}`),
   sell: (data) => api.post('/transactions/sell', data), // Updated to accept full data object
+  updateVariant: (variantId, variantData) => api.put(`/products/variants/${variantId}`, variantData),
 };

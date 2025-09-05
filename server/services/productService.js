@@ -1,6 +1,33 @@
 // server/services/productService.js
-import { prisma } from '../prismaClient.js'; // adjust path to your prisma client
+import { prisma } from '../prismaClient.js';
 import { APIError } from '../utils/helpers.js';
+
+// Helper function to generate random SKU
+const generateSKU = (prefix = 'PROD', length = 8) => {
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+  let result = prefix + '-';
+  for (let i = 0; i < length; i++) {
+    result += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return result;
+};
+
+// Helper function to ensure SKU is unique
+const ensureUniqueSKU = async (sku, isVariant = false) => {
+  let exists = false;
+  
+  if (isVariant) {
+    exists = await prisma.productVariant.findUnique({
+      where: { sku }
+    });
+  } else {
+    exists = await prisma.product.findUnique({
+      where: { baseSku: sku }
+    });
+  }
+  
+  return exists ? ensureUniqueSKU(generateSKU(), isVariant) : sku;
+};
 
 export const productService = {
   getAllProducts: async (options = {}) => {
@@ -35,16 +62,28 @@ export const productService = {
   },
 
   createProduct: async (productData) => {
-    const { name, description, category, baseSku, variants } = productData;
+    const { name, description, category, variants } = productData;
     
-    // Check if base SKU already exists
-    const existingProduct = await prisma.product.findUnique({
-      where: { baseSku }
-    });
-
-    if (existingProduct) {
-      throw new APIError('Base SKU already exists', 400);
-    }
+    // Generate unique base SKU
+    const baseSku = await ensureUniqueSKU(generateSKU());
+    
+    // Generate variant SKUs
+    const variantsWithSKUs = await Promise.all(
+      variants.map(async (variant) => {
+        const variantSku = await ensureUniqueSKU(
+          generateSKU(`${baseSku}-V`), 
+          true
+        );
+        
+        return {
+          ...variant,
+          sku: variantSku,
+          costPrice: parseFloat(variant.costPrice),
+          sellingPrice: parseFloat(variant.sellingPrice),
+          quantity: parseInt(variant.quantity)
+        };
+      })
+    );
 
     return await prisma.product.create({
       data: {
@@ -53,14 +92,7 @@ export const productService = {
         category,
         baseSku,
         variants: {
-          create: variants.map(variant => ({
-            sku: variant.sku,
-            color: variant.color,
-            size: variant.size,
-            costPrice: parseFloat(variant.costPrice),
-            sellingPrice: parseFloat(variant.sellingPrice),
-            quantity: parseInt(variant.quantity)
-          }))
+          create: variantsWithSKUs
         }
       },
       include: {
@@ -70,7 +102,7 @@ export const productService = {
   },
 
   updateProduct: async (id, productData) => {
-    const { name, description, category, baseSku } = productData;
+    const { name, description, category } = productData;
     
     // Check if product exists
     const existingProduct = await prisma.product.findUnique({
@@ -81,24 +113,12 @@ export const productService = {
       throw new APIError('Product not found', 404);
     }
 
-    // Check if base SKU is being changed to one that already exists
-    if (baseSku && baseSku !== existingProduct.baseSku) {
-      const skuExists = await prisma.product.findUnique({
-        where: { baseSku }
-      });
-
-      if (skuExists) {
-        throw new APIError('Base SKU already exists', 400);
-      }
-    }
-
     return await prisma.product.update({
       where: { id: parseInt(id) },
       data: {
         name,
         description,
-        category,
-        baseSku
+        category
       },
       include: {
         variants: true
@@ -107,7 +127,22 @@ export const productService = {
   },
 
   addProductVariant: async (productId, variantData) => {
-    const { sku, color, size, costPrice, sellingPrice, quantity } = variantData;
+    // Get the product to use its base SKU
+    const product = await prisma.product.findUnique({
+      where: { id: parseInt(productId) }
+    });
+
+    if (!product) {
+      throw new APIError('Product not found', 404);
+    }
+
+    // Generate unique variant SKU based on product's base SKU
+    const sku = await ensureUniqueSKU(
+      generateSKU(`${product.baseSku}-V`), 
+      true
+    );
+
+    const { color, size, costPrice, sellingPrice, quantity } = variantData;
     
     // Check if variant with same color/size already exists
     const existingVariant = await prisma.productVariant.findFirst({
@@ -120,15 +155,6 @@ export const productService = {
 
     if (existingVariant) {
       throw new APIError('Variant with this color and size already exists', 400);
-    }
-
-    // Check if SKU already exists
-    const skuExists = await prisma.productVariant.findUnique({
-      where: { sku }
-    });
-
-    if (skuExists) {
-      throw new APIError('SKU already exists', 400);
     }
 
     return await prisma.productVariant.create({
@@ -145,7 +171,7 @@ export const productService = {
   },
 
   updateProductVariant: async (variantId, variantData) => {
-    const { sku, color, size, costPrice, sellingPrice, quantity } = variantData;
+    const { color, size, costPrice, sellingPrice, quantity } = variantData;
     
     // Check if variant exists
     const existingVariant = await prisma.productVariant.findUnique({
@@ -173,22 +199,9 @@ export const productService = {
       }
     }
 
-    // Check if SKU is being changed to one that already exists
-    if (sku && sku !== existingVariant.sku) {
-      const skuExists = await prisma.productVariant.findUnique({
-        where: { sku },
-        select: { id: true }
-      });
-
-      if (skuExists) {
-        throw new APIError('SKU already exists', 400);
-      }
-    }
-
     return await prisma.productVariant.update({
       where: { id: parseInt(variantId) },
       data: {
-        sku,
         color,
         size,
         costPrice: parseFloat(costPrice),
@@ -256,10 +269,13 @@ export const productService = {
     return { message: 'Product permanently deleted' };
   },
 
-  checkStockAvailability: async (productId, requestedQuantity) => {
-    const product = await prisma.product.findUnique({ where: { id: Number(productId) } });
-    if (!product) throw new APIError('Product not found', 404);
-    if (product.quantity < requestedQuantity) throw new APIError('Insufficient stock', 400);
-    return product;
+  checkStockAvailability: async (variantId, requestedQuantity) => {
+    const variant = await prisma.productVariant.findUnique({ 
+      where: { id: Number(variantId) } 
+    });
+    
+    if (!variant) throw new APIError('Variant not found', 404);
+    if (variant.quantity < requestedQuantity) throw new APIError('Insufficient stock', 400);
+    return variant;
   }
 };

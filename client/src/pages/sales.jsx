@@ -33,37 +33,37 @@ export default function Sales() {
     setExpandedProducts(newExpanded);
   };
 
-  const addVariantToSale = (variant, product) => {
-    // Check if variant is already in the sale
-    const existingItem = saleItems.find(item => item.variantId === variant.id);
-    
-    if (existingItem) {
-      // Increase quantity if already in sale
-      setSaleItems(prev => 
-        prev.map(item => 
-          item.variantId === variant.id 
-            ? { ...item, saleQuantity: item.saleQuantity + 1 } 
-            : item
-        )
-      );
-    } else {
-      // Add new variant to sale with default values
-      setSaleItems(prev => [
-        ...prev, 
-        { 
-          ...variant,
-          productId: product.id,
-          productName: product.name,
-          variantId: variant.id,
-          saleQuantity: 1, 
-          saleDiscount: 0,
-          salePrice: variant.sellingPrice
-        }
-      ]);
-    }
-    
-    showToast('success', `${product.name} - ${variant.sku} added to sale`);
-  };
+const addVariantToSale = (variant, product) => {
+  // Check if variant is already in the sale
+  const existingItem = saleItems.find(item => item.variantId === variant.id);
+  
+  if (existingItem) {
+    // Increase quantity if already in sale
+    setSaleItems(prev => 
+      prev.map(item => 
+        item.variantId === variant.id 
+          ? { ...item, saleQuantity: item.saleQuantity + 1 } 
+          : item
+      )
+    );
+  } else {
+    // Add new variant to sale with default values
+    setSaleItems(prev => [
+      ...prev, 
+      { 
+        ...variant,
+        productId: product.id,
+        productName: product.name,
+        variantId: variant.id,
+        saleQuantity: 1, 
+        saleDiscount: 0,
+        salePrice: variant.sellingPrice
+      }
+    ]);
+  }
+  
+  showToast('success', `${product.name} - ${variant.sku} added to sale`);
+};
 
   const updateSaleItem = (variantId, field, value) => {
     setSaleItems(prev =>
@@ -91,71 +91,75 @@ export default function Sales() {
   };
 
   const processSale = async () => {
-    if (saleItems.length === 0) {
-      showToast('error', 'Please add variants to the sale');
-      return;
-    }
+  if (saleItems.length === 0) {
+    showToast('error', 'Please add variants to the sale');
+    return;
+  }
 
-    try {
-      // Process each sale item
-      const results = await Promise.all(
-        saleItems.map(async (item) => {
-          return await sellProduct(
-            item.variantId, 
-            Number(item.saleQuantity), 
-            { discount: Number(item.saleDiscount) }
-          );
-        })
-      );
+  try {
+    // Process each sale item using variantId
+    const results = await Promise.all(
+      saleItems.map(async (item) => {
+        return await sellProduct(
+          item.variantId, // Use variantId instead of productId
+          Number(item.saleQuantity), 
+          { discount: Number(item.saleDiscount) }
+        );
+      })
+    );
 
-      // Calculate total profit
-      const totalProfit = results.reduce((sum, result) => {
-        return sum + (result?.profit || 0);
-      }, 0);
+    // Calculate total profit
+    const totalProfit = results.reduce((sum, result) => {
+      return sum + (result?.profit || 0);
+    }, 0);
 
-      showToast('success', `Sale completed! Total profit: $${totalProfit.toFixed(2)}`);
-      
-      // Reset sale items and refetch products
-      setSaleItems([]);
-      refetch?.();
-    } catch (err) {
-      console.error(err);
-      showToast('error', err?.response?.data?.message || 'Failed to process sale');
-    }
-  };
+    showToast('success', `Sale completed! Total profit: $${totalProfit.toFixed(2)}`);
+    
+    // Reset sale items and refetch products
+    setSaleItems([]);
+    refetch?.();
+  } catch (err) {
+    console.error(err);
+    showToast('error', err?.response?.data?.message || 'Failed to process sale');
+  }
+};
 
   const handleRefill = async () => {
-    if (!refillModal.variant || !refillModal.quantity) {
-      showToast('error', 'Please enter a valid quantity');
-      return;
-    }
+  if (!refillModal.variant || !refillModal.quantity) {
+    showToast('error', 'Please enter a valid quantity');
+    return;
+  }
 
-    try {
-      const newQuantity = Number(refillModal.variant.quantity) + Number(refillModal.quantity);
-      await updateProduct(refillModal.variant.id, {
-        ...refillModal.variant,
-        quantity: newQuantity
-      });
-      
-      showToast('success', `Added ${refillModal.quantity} units to ${refillModal.product.name} - ${refillModal.variant.sku}`);
-      setRefillModal({ isOpen: false, product: null, variant: null, quantity: '' });
-      refetch?.();
-    } catch (err) {
-      console.error(err);
-      showToast('error', err?.response?.data?.message || 'Failed to refill stock');
-    }
-  };
-
-  const filteredProducts = products?.filter(p => 
-    String(p.name || '').toLowerCase().includes(query.trim().toLowerCase()) ||
-    String(p.baseSku || '').toLowerCase().includes(query.trim().toLowerCase()) ||
-    String(p.category || '').toLowerCase().includes(query.trim().toLowerCase()) ||
+  try {
+    const newQuantity = Number(refillModal.variant.quantity) + Number(refillModal.quantity);
+    
+    // Update the variant quantity, not the product quantity
+    await updateVariant(refillModal.variant.id, {
+      ...refillModal.variant,
+      quantity: newQuantity
+    });
+    
+    showToast('success', `Added ${refillModal.quantity} units to ${refillModal.product.name} - ${refillModal.variant.sku}`);
+    setRefillModal({ isOpen: false, product: null, variant: null, quantity: '' });
+    refetch?.();
+  } catch (err) {
+    console.error(err);
+    showToast('error', err?.response?.data?.message || 'Failed to refill stock');
+  }
+};
+const filteredProducts = products?.filter(p => {
+  const searchTerm = query.trim().toLowerCase();
+  return (
+    String(p.name || '').toLowerCase().includes(searchTerm) ||
+    String(p.baseSku || '').toLowerCase().includes(searchTerm) ||
+    String(p.category || '').toLowerCase().includes(searchTerm) ||
     (p.variants || []).some(v => 
-      String(v.sku || '').toLowerCase().includes(q) ||
-      String(v.color || '').toLowerCase().includes(q) ||
-      String(v.size || '').toLowerCase().includes(q)
+      String(v.sku || '').toLowerCase().includes(searchTerm) ||
+      String(v.color || '').toLowerCase().includes(searchTerm) ||
+      String(v.size || '').toLowerCase().includes(searchTerm)
     )
-  ) || [];
+  );
+}) || [];
 
   return (
     <div className="container mx-auto px-4 py-6">
@@ -208,6 +212,7 @@ export default function Sales() {
                       {product.variants?.map(variant => (
                         <div key={variant.id} className="px-3 py-2 border-b border-slate-200 last:border-b-0 flex justify-between items-center">
                           <div>
+                            {/* Add this line for variant SKU */}
                             <div className="font-medium">Variant: {variant.sku}</div>
                             <div className="text-sm text-slate-500">
                               {variant.color && `Color: ${variant.color}`}
@@ -287,6 +292,7 @@ export default function Sales() {
                     <div key={item.variantId} className="p-3 border-b border-slate-100">
                       <div className="flex justify-between items-start mb-2">
                         <div className="flex-1">
+                          {/* Add this line for variant SKU */}
                           <div className="font-medium">{item.productName} - {item.sku}</div>
                           <div className="text-sm text-slate-500">
                             {item.color && `Color: ${item.color}`}

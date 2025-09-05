@@ -18,25 +18,26 @@ export const getProduct = catchAsync(async (req, res) => {
 
 // Create product with variants
 export const createProduct = catchAsync(async (req, res) => {
-  const { name, description, category, baseSku, variants } = req.body;
+  const { name, description, category, variants } = req.body;
   
   const product = await productService.createProduct({
     name,
     description,
     category,
-    baseSku,
     variants: variants || []
   });
   
   await activityService.createActivity(
     'CREATE_PRODUCT',
-    `Created product: ${product.name} with ${product.variants.length} variants`,
+    `Created product: ${product.name} with ${product.variants.length} variants. Base SKU: ${product.baseSku}`,
     req.user.userId,
     product.id
   );
   
   successResponse(res, 201, product, 'Product created successfully');
 });
+
+
 
 // Update product
 export const updateProduct = catchAsync(async (req, res) => {
@@ -50,12 +51,12 @@ export const updateProduct = catchAsync(async (req, res) => {
     baseSku
   });
 
-  await activityService.createActivity(
-    'UPDATE_PRODUCT',
-    `Updated product: ${product.name}`,
-    req.user.userId,
-    product.id
-  );
+ await activityService.createActivity(
+  'CREATE_PRODUCT',
+  `Created product: ${product.name} with ${product.variants.length} variants. Base SKU: ${product.baseSku}`,
+  req.user.userId,
+  product.id
+);
   
   successResponse(res, 200, product, 'Product updated successfully');
 });
@@ -63,10 +64,9 @@ export const updateProduct = catchAsync(async (req, res) => {
 // Add variant to product
 export const addVariant = catchAsync(async (req, res) => {
   const { productId } = req.params;
-  const { sku, color, size, costPrice, sellingPrice, quantity } = req.body;
+  const { color, size, costPrice, sellingPrice, quantity } = req.body;
   
   const variant = await productService.addProductVariant(productId, {
-    sku,
     color,
     size,
     costPrice,
@@ -75,11 +75,11 @@ export const addVariant = catchAsync(async (req, res) => {
   });
   
   await activityService.createActivity(
-    'ADD_VARIANT',
-    `Added variant to product: ${variant.sku} (Color: ${color || 'N/A'}, Size: ${size || 'N/A'})`,
-    req.user.userId,
-    parseInt(productId)
-  );
+  'ADD_VARIANT',
+  `Added variant to product. Variant SKU: ${variant.sku}`,
+  req.user.userId,
+  parseInt(productId)
+);
   
   successResponse(res, 201, variant, 'Variant added successfully');
 });

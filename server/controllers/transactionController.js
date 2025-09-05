@@ -29,55 +29,59 @@ export const createTransaction = catchAsync(async (req, res) => {
 
 // controllers/transactionController.js
 export const sellProduct = catchAsync(async (req, res) => {
-  const { productId, quantity, discount = 0 } = req.body;
+  const { variantId, quantity } = req.body;
 
-  if (!productId || isNaN(productId)) {
-    return res.status(400).json({ message: 'Valid productId is required' });
+  if (!variantId || isNaN(variantId)) {
+    return res.status(400).json({ message: 'Valid variantId is required' });
   }
 
-  const product = await prisma.product.findUnique({
-    where: { id: Number(productId) },
+  // Get the variant
+  const variant = await prisma.productVariant.findUnique({
+    where: { id: Number(variantId) },
+    include: {
+      product: true
+    }
   });
 
-  if (!product) {
-    return res.status(404).json({ message: 'Product not found' });
+  if (!variant) {
+    return res.status(404).json({ message: 'Variant not found' });
   }
 
-  if (product.quantity < quantity) {
+  if (variant.quantity < quantity) {
     return res.status(400).json({ message: 'Insufficient stock' });
   }
 
-  // Calculate discounted price and profit
-  const discountedPrice = product.sellingPrice * (1 - discount / 100);
-  const profit = (discountedPrice - product.costPrice) * Number(quantity);
+  // Calculate profit
+  const profit = (variant.sellingPrice - variant.costPrice) * Number(quantity);
 
   // Record transaction
   const transaction = await prisma.transaction.create({
     data: {
       type: 'SALE',
-      productId: Number(productId),
+      productId: variant.productId,
       quantity: Number(quantity),
-      notes: `Sold with ${discount}% discount. Profit: $${profit.toFixed(2)}`,
-    },
+      notes: `Sold variant: ${variant.sku}. Profit: $${profit.toFixed(2)}`
+    }
   });
 
-  // Update product stock
-  await prisma.product.update({
-    where: { id: Number(productId) },
-    data: { quantity: product.quantity - Number(quantity) },
+  // Update variant stock
+  await prisma.productVariant.update({
+    where: { id: Number(variantId) },
+    data: { quantity: variant.quantity - Number(quantity) }
   });
+
+  // Log activity
+  await activityService.createActivity(
+    'SELL_PRODUCT',
+    `Sold ${quantity} units of variant: ${variant.sku}. Profit: $${profit.toFixed(2)}`,
+    req.user.userId,
+    variant.productId
+  );
 
   successResponse(
     res,
     201,
     { transaction, profit },
-    'Product sold successfully'
+    'Product sold and profit recorded'
   );
-
-  await activityService.createActivity(
-  'SELL_PRODUCT',
-  `Sold ${quantity} units of ${product.name}. Profit: $${profit.toFixed(2)}`,
-  req.user.id,
-  product.id
-);
 });

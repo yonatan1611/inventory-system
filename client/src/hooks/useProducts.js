@@ -79,18 +79,26 @@ export function useProducts() {
     }
   };
 
-  const sellProduct = async (productId, quantity = 1, options = {}) => {
+  const sellProduct = async (variantId, quantity = 1, options = {}) => {
   try {
-    // Include discount in the request
-    const response = await productsAPI.sell({ 
-      productId, 
-      quantity, 
-      discount: options.discount || 0 
-    });
+    // Call sell endpoint with variantId instead of productId
+    const response = await productsAPI.sell({ variantId, quantity, ...options });
     await fetchProducts();
     return response?.data?.data ?? response?.data ?? response;
   } catch (err) {
     const msg = err?.response?.data?.message || err.message || 'Sell failed';
+    setError(msg);
+    throw err;
+  }
+};
+
+const updateVariant = async (variantId, variantData) => {
+  try {
+    const response = await productsAPI.updateVariant(variantId, variantData);
+    await fetchProducts();
+    return response?.data?.data ?? response?.data ?? response;
+  } catch (err) {
+    const msg = err?.response?.data?.message || err.message || 'Update failed';
     setError(msg);
     throw err;
   }
@@ -105,5 +113,9 @@ export function useProducts() {
     deleteProduct,
     sellProduct,
     refetch: fetchProducts,
+    updateVariant,
   };
 }
+
+
+
