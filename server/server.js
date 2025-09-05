@@ -6,6 +6,7 @@ import productsRouter from './routes/products.js';
 import transactionsRouter from './routes/transactions.js';
 import reportsRouter from './routes/reports.js';
 import authRouter from './routes/auth.js';
+import activityRouter from './routes/activity.js';
 import { authenticateToken } from './middleware/auth.js';
 
 dotenv.config();
@@ -18,6 +19,7 @@ app.use(express.json());
 app.use('/api/auth', authRouter);
 
 // Protected routes
+app.use('/api/activity', authenticateToken, activityRouter);
 app.use('/api/products', authenticateToken, productsRouter);
 app.use('/api/transactions', authenticateToken, transactionsRouter);
 app.use('/api/reports', authenticateToken, reportsRouter);

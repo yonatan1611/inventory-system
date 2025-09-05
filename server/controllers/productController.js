@@ -1,14 +1,13 @@
 import { productService } from '../services/productService.js';
+import { activityService } from '../services/activityService.js';
 import { catchAsync, successResponse } from '../utils/helpers.js';
 
 // Get all products
-// controller
 export const getProducts = catchAsync(async (req, res) => {
   const includeArchived = req.query.archived === 'true';
   const products = await productService.getAllProducts({ includeArchived });
   successResponse(res, 200, products);
 });
-
 
 // Get single product
 export const getProduct = catchAsync(async (req, res) => {
@@ -29,6 +28,14 @@ export const createProduct = catchAsync(async (req, res) => {
     quantity: parseInt(quantity)
   });
   
+  // Use req.user.userId instead of req.user.id
+  await activityService.createActivity(
+    'CREATE_PRODUCT',
+    `Created product: ${product.name} (SKU: ${product.sku})`,
+    req.user.userId, // Changed to userId
+    product.id
+  );
+  
   successResponse(res, 201, product, 'Product created successfully');
 });
 
@@ -45,15 +52,35 @@ export const updateProduct = catchAsync(async (req, res) => {
     sellingPrice: parseFloat(sellingPrice),
     quantity: parseInt(quantity)
   });
+
+  // Use req.user.userId instead of req.user.id
+  await activityService.createActivity(
+    'UPDATE_PRODUCT',
+    `Updated product: ${product.name} (SKU: ${product.sku})`,
+    req.user.userId, // Changed to userId
+    product.id
+  );
   
   successResponse(res, 200, product, 'Product updated successfully');
 });
 
 // Delete product
-// server/controllers/productController.js
 export const deleteProduct = catchAsync(async (req, res) => {
   const { id } = req.params;
+  
+  // Get product details before deleting
+  const product = await productService.getProductById(id);
+  
   const result = await productService.deleteProduct(id);
+  
+  // Log activity with product details
+  await activityService.createActivity(
+    'DELETE_PRODUCT',
+    `Deleted product: ${product.name} (SKU: ${product.sku})`,
+    req.user.userId, // Use req.user.userId
+    parseInt(id)
+  );
+  
   successResponse(res, 200, null, result.message || 'Product archived');
 });
 
@@ -64,7 +91,7 @@ export const restoreProduct = catchAsync(async (req, res) => {
   successResponse(res, 200, null, result.message || 'Product restored');
 });
 
-// Hard delete (permanent) — optional, protect via roles
+// Hard delete (permanent)
 export const hardDeleteProduct = catchAsync(async (req, res) => {
   const { id } = req.params;
   const result = await productService.hardDeleteProduct(id);

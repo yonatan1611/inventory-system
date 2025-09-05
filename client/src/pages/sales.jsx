@@ -68,7 +68,7 @@ export default function Sales() {
     const discount = Number(item.saleDiscount) || 0;
     const price = Number(item.salePrice) || 0;
     
-    const discountedPrice = price * (1 - discount / 100);
+    const discountedPrice = price - discount;
     return discountedPrice * quantity;
   };
 
@@ -307,11 +307,11 @@ export default function Sales() {
                         </div>
                         
                         <div>
-                          <label className="block text-xs text-slate-500 mb-1">Discount %</label>
+                          <label className="block text-xs text-slate-500 mb-1">Discount </label>
                           <input
                             type="number"
                             min="0"
-                            max="100"
+                            max="10000"
                             value={item.saleDiscount}
                             onChange={(e) => {
                               const value = e.target.value;
@@ -323,7 +323,7 @@ export default function Sales() {
                             onBlur={(e) => {
                               let value = parseInt(e.target.value) || 0;
                               if (value < 0) value = 0;
-                              if (value > 100) value = 100;
+                              if (value > 10000) value = 10000;
                               updateSaleItem(item.id, 'saleDiscount', value);
                             }}
                             className="w-full px-2 py-1 border rounded text-right"

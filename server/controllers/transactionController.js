@@ -1,4 +1,5 @@
 import { transactionService } from '../services/transactionService.js';
+import { activityService } from '../services/activityService.js';
 import { catchAsync, successResponse } from '../utils/helpers.js';
 import { prisma } from '../prismaClient.js'; // <-- use your prisma client
 
@@ -72,4 +73,11 @@ export const sellProduct = catchAsync(async (req, res) => {
     { transaction, profit },
     'Product sold successfully'
   );
+
+  await activityService.createActivity(
+  'SELL_PRODUCT',
+  `Sold ${quantity} units of ${product.name}. Profit: $${profit.toFixed(2)}`,
+  req.user.id,
+  product.id
+);
 });

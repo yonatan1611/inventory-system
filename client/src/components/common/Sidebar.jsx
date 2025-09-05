@@ -20,6 +20,7 @@ const menuItems = [
   { path: '/sales', Icon: DollarSign, label: 'Sales' },
   { path: '/transactions', Icon: Repeat, label: 'Transactions' },
   { path: '/reports', Icon: BarChart2, label: 'Reports' },
+  { path: '/activities', Icon: User, label: 'Activities' },
 ];
 
 export default function Sidebar({ collapsed, onToggleCollapse, onLogout, user }) {

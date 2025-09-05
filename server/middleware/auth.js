@@ -10,7 +10,7 @@ export const authenticateToken = (req, res, next) => {
     return res.status(401).json({ error: 'Access token required' });
   }
 
-  jwt.verify(token, JWT_SECRET, (err, user) => {
+  jwt.verify(token, JWT_SECRET, (err, decoded) => {
     if (err) {
       // Provide more specific error messages
       if (err.name === 'TokenExpiredError') {
@@ -31,7 +31,10 @@ export const authenticateToken = (req, res, next) => {
       }
     }
     
-    req.user = user;
+      req.user = {
+      id: decoded.userId || decoded.id, // Handle both formats
+        ...decoded
+  };
     next();
   });
 };
