@@ -1,3 +1,4 @@
+// controllers/productController.js
 import { productService } from '../services/productService.js';
 import { activityService } from '../services/activityService.js';
 import { catchAsync, successResponse } from '../utils/helpers.js';
@@ -15,24 +16,22 @@ export const getProduct = catchAsync(async (req, res) => {
   successResponse(res, 200, product);
 });
 
-// Create product
+// Create product with variants
 export const createProduct = catchAsync(async (req, res) => {
-  const { name, category, sku, costPrice, sellingPrice, quantity } = req.body;
+  const { name, description, category, baseSku, variants } = req.body;
   
   const product = await productService.createProduct({
     name,
+    description,
     category,
-    sku,
-    costPrice: parseFloat(costPrice),
-    sellingPrice: parseFloat(sellingPrice),
-    quantity: parseInt(quantity)
+    baseSku,
+    variants: variants || []
   });
   
-  // Use req.user.userId instead of req.user.id
   await activityService.createActivity(
     'CREATE_PRODUCT',
-    `Created product: ${product.name} (SKU: ${product.sku})`,
-    req.user.userId, // Changed to userId
+    `Created product: ${product.name} with ${product.variants.length} variants`,
+    req.user.userId,
     product.id
   );
   
@@ -42,26 +41,88 @@ export const createProduct = catchAsync(async (req, res) => {
 // Update product
 export const updateProduct = catchAsync(async (req, res) => {
   const { id } = req.params;
-  const { name, category, sku, costPrice, sellingPrice, quantity } = req.body;
+  const { name, description, category, baseSku } = req.body;
   
   const product = await productService.updateProduct(id, {
     name,
+    description,
     category,
-    sku,
-    costPrice: parseFloat(costPrice),
-    sellingPrice: parseFloat(sellingPrice),
-    quantity: parseInt(quantity)
+    baseSku
   });
 
-  // Use req.user.userId instead of req.user.id
   await activityService.createActivity(
     'UPDATE_PRODUCT',
-    `Updated product: ${product.name} (SKU: ${product.sku})`,
-    req.user.userId, // Changed to userId
+    `Updated product: ${product.name}`,
+    req.user.userId,
     product.id
   );
   
   successResponse(res, 200, product, 'Product updated successfully');
+});
+
+// Add variant to product
+export const addVariant = catchAsync(async (req, res) => {
+  const { productId } = req.params;
+  const { sku, color, size, costPrice, sellingPrice, quantity } = req.body;
+  
+  const variant = await productService.addProductVariant(productId, {
+    sku,
+    color,
+    size,
+    costPrice,
+    sellingPrice,
+    quantity
+  });
+  
+  await activityService.createActivity(
+    'ADD_VARIANT',
+    `Added variant to product: ${variant.sku} (Color: ${color || 'N/A'}, Size: ${size || 'N/A'})`,
+    req.user.userId,
+    parseInt(productId)
+  );
+  
+  successResponse(res, 201, variant, 'Variant added successfully');
+});
+
+// Update variant
+export const updateVariant = catchAsync(async (req, res) => {
+  const { variantId } = req.params;
+  const { sku, color, size, costPrice, sellingPrice, quantity } = req.body;
+  
+  const variant = await productService.updateProductVariant(variantId, {
+    sku,
+    color,
+    size,
+    costPrice,
+    sellingPrice,
+    quantity
+  });
+  
+  await activityService.createActivity(
+    'UPDATE_VARIANT',
+    `Updated variant: ${variant.sku}`,
+    req.user.userId,
+    variant.productId
+  );
+  
+  successResponse(res, 200, variant, 'Variant updated successfully');
+});
+
+// Delete variant
+export const deleteVariant = catchAsync(async (req, res) => {
+  const { variantId } = req.params;
+  
+  const variant = await productService.getProductVariantById(variantId);
+  const result = await productService.deleteProductVariant(variantId);
+  
+  await activityService.createActivity(
+    'DELETE_VARIANT',
+    `Deleted variant: ${variant.sku}`,
+    req.user.userId,
+    variant.productId
+  );
+  
+  successResponse(res, 200, null, result.message || 'Variant deleted successfully');
 });
 
 // Delete product
@@ -76,8 +137,8 @@ export const deleteProduct = catchAsync(async (req, res) => {
   // Log activity with product details
   await activityService.createActivity(
     'DELETE_PRODUCT',
-    `Deleted product: ${product.name} (SKU: ${product.sku})`,
-    req.user.userId, // Use req.user.userId
+    `Deleted product: ${product.name} (Base SKU: ${product.baseSku})`,
+    req.user.userId,
     parseInt(id)
   );
   

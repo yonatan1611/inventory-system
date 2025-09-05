@@ -3,42 +3,216 @@ import { prisma } from '../prismaClient.js'; // adjust path to your prisma clien
 import { APIError } from '../utils/helpers.js';
 
 export const productService = {
-  getAllProducts: async ({ includeArchived = false } = {}) => {
-    // default: only non-archived
-    const where = includeArchived ? {} : { archived: false };
+  getAllProducts: async (options = {}) => {
+    const { includeArchived = false } = options;
+    
     return await prisma.product.findMany({
-      where,
-      orderBy: { createdAt: 'desc' },
-      // include a transactions count for UI if helpful:
-      include: { _count: { select: { transactions: true } } },
+      where: includeArchived ? {} : { archived: false },
+      include: {
+        variants: {
+          orderBy: { createdAt: 'desc' }
+        }
+      },
+      orderBy: { createdAt: 'desc' }
     });
   },
 
   getProductById: async (id) => {
-    const product = await prisma.product.findUnique({ where: { id: Number(id) } });
-    if (!product) throw new APIError('Product not found', 404);
+    const product = await prisma.product.findUnique({
+      where: { id: parseInt(id) },
+      include: {
+        variants: {
+          orderBy: { createdAt: 'desc' }
+        }
+      }
+    });
+
+    if (!product) {
+      throw new APIError('Product not found', 404);
+    }
+
     return product;
   },
 
   createProduct: async (productData) => {
-    const existing = await prisma.product.findUnique({ where: { sku: productData.sku } });
-    if (existing) throw new APIError('SKU already exists', 400);
-    return await prisma.product.create({ data: productData });
+    const { name, description, category, baseSku, variants } = productData;
+    
+    // Check if base SKU already exists
+    const existingProduct = await prisma.product.findUnique({
+      where: { baseSku }
+    });
+
+    if (existingProduct) {
+      throw new APIError('Base SKU already exists', 400);
+    }
+
+    return await prisma.product.create({
+      data: {
+        name,
+        description,
+        category,
+        baseSku,
+        variants: {
+          create: variants.map(variant => ({
+            sku: variant.sku,
+            color: variant.color,
+            size: variant.size,
+            costPrice: parseFloat(variant.costPrice),
+            sellingPrice: parseFloat(variant.sellingPrice),
+            quantity: parseInt(variant.quantity)
+          }))
+        }
+      },
+      include: {
+        variants: true
+      }
+    });
   },
 
   updateProduct: async (id, productData) => {
-    const existing = await prisma.product.findUnique({ where: { id: Number(id) } });
-    if (!existing) throw new APIError('Product not found', 404);
+    const { name, description, category, baseSku } = productData;
+    
+    // Check if product exists
+    const existingProduct = await prisma.product.findUnique({
+      where: { id: parseInt(id) }
+    });
 
-    if (productData.sku && productData.sku !== existing.sku) {
-      const skuExists = await prisma.product.findUnique({ where: { sku: productData.sku } });
-      if (skuExists) throw new APIError('SKU already exists', 400);
+    if (!existingProduct) {
+      throw new APIError('Product not found', 404);
+    }
+
+    // Check if base SKU is being changed to one that already exists
+    if (baseSku && baseSku !== existingProduct.baseSku) {
+      const skuExists = await prisma.product.findUnique({
+        where: { baseSku }
+      });
+
+      if (skuExists) {
+        throw new APIError('Base SKU already exists', 400);
+      }
     }
 
     return await prisma.product.update({
-      where: { id: Number(id) },
-      data: productData,
+      where: { id: parseInt(id) },
+      data: {
+        name,
+        description,
+        category,
+        baseSku
+      },
+      include: {
+        variants: true
+      }
     });
+  },
+
+  addProductVariant: async (productId, variantData) => {
+    const { sku, color, size, costPrice, sellingPrice, quantity } = variantData;
+    
+    // Check if variant with same color/size already exists
+    const existingVariant = await prisma.productVariant.findFirst({
+      where: {
+        productId: parseInt(productId),
+        color: color || null,
+        size: size || null
+      }
+    });
+
+    if (existingVariant) {
+      throw new APIError('Variant with this color and size already exists', 400);
+    }
+
+    // Check if SKU already exists
+    const skuExists = await prisma.productVariant.findUnique({
+      where: { sku }
+    });
+
+    if (skuExists) {
+      throw new APIError('SKU already exists', 400);
+    }
+
+    return await prisma.productVariant.create({
+      data: {
+        productId: parseInt(productId),
+        sku,
+        color,
+        size,
+        costPrice: parseFloat(costPrice),
+        sellingPrice: parseFloat(sellingPrice),
+        quantity: parseInt(quantity)
+      }
+    });
+  },
+
+  updateProductVariant: async (variantId, variantData) => {
+    const { sku, color, size, costPrice, sellingPrice, quantity } = variantData;
+    
+    // Check if variant exists
+    const existingVariant = await prisma.productVariant.findUnique({
+      where: { id: parseInt(variantId) },
+      include: { product: true }
+    });
+
+    if (!existingVariant) {
+      throw new APIError('Variant not found', 404);
+    }
+
+    // Check if another variant with same color/size already exists
+    if (color !== existingVariant.color || size !== existingVariant.size) {
+      const duplicateVariant = await prisma.productVariant.findFirst({
+        where: {
+          productId: existingVariant.productId,
+          color: color || null,
+          size: size || null,
+          NOT: { id: parseInt(variantId) }
+        }
+      });
+
+      if (duplicateVariant) {
+        throw new APIError('Another variant with this color and size already exists', 400);
+      }
+    }
+
+    // Check if SKU is being changed to one that already exists
+    if (sku && sku !== existingVariant.sku) {
+      const skuExists = await prisma.productVariant.findUnique({
+        where: { sku },
+        select: { id: true }
+      });
+
+      if (skuExists) {
+        throw new APIError('SKU already exists', 400);
+      }
+    }
+
+    return await prisma.productVariant.update({
+      where: { id: parseInt(variantId) },
+      data: {
+        sku,
+        color,
+        size,
+        costPrice: parseFloat(costPrice),
+        sellingPrice: parseFloat(sellingPrice),
+        quantity: parseInt(quantity)
+      }
+    });
+  },
+
+  deleteProductVariant: async (variantId) => {
+    // Check if variant exists
+    const variant = await prisma.productVariant.findUnique({
+      where: { id: parseInt(variantId) }
+    });
+
+    if (!variant) {
+      throw new APIError('Variant not found', 404);
+    }
+
+    await prisma.productVariant.delete({
+      where: { id: parseInt(variantId) }
+    });
+
+    return { message: 'Variant deleted successfully' };
   },
 
   // SOFT DELETE -> set archived = true

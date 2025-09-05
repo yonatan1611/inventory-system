@@ -5,10 +5,19 @@ import { errorResponse } from '../utils/helpers.js';
 export const validateProduct = [
   body('name').notEmpty().withMessage('Product name is required'),
   body('category').notEmpty().withMessage('Category is required'),
-  body('sku').notEmpty().withMessage('SKU is required'),
-  body('costPrice').isFloat({ min: 0 }).withMessage('Cost price must be a positive number'),
-  body('sellingPrice').isFloat({ min: 0 }).withMessage('Selling price must be a positive number'),
-  body('quantity').isInt({ min: 0 }).withMessage('Quantity must be a non-negative integer'),
+  body('baseSku').notEmpty().withMessage('Base SKU is required'),
+  body('variants').isArray({ min: 1 }).withMessage('At least one variant is required'),
+  body('variants.*.sku').notEmpty().withMessage('Variant SKU is required'),
+  body('variants.*.costPrice').isFloat({ min: 0 }).withMessage('Valid cost price is required'),
+  body('variants.*.sellingPrice').isFloat({ min: 0 }).withMessage('Valid selling price is required'),
+  body('variants.*.quantity').isInt({ min: 0 }).withMessage('Valid quantity is required'),
+];
+
+export const validateVariant = [
+  body('sku').notEmpty().withMessage('Variant SKU is required'),
+  body('costPrice').isFloat({ min: 0 }).withMessage('Valid cost price is required'),
+  body('sellingPrice').isFloat({ min: 0 }).withMessage('Valid selling price is required'),
+  body('quantity').isInt({ min: 0 }).withMessage('Valid quantity is required'),
 ];
 
 // Validation rules for transaction creation

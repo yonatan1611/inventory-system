@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { PlusCircle, Search, Edit3, Trash2, DollarSign, X } from 'lucide-react';
+import { PlusCircle, Search, Edit3, Trash2, X, ChevronDown, ChevronRight } from 'lucide-react';
 import ProductForm from '../components/products/ProductForm';
 import ProductList from '../components/products/ProductList';
 import { useProducts } from '../hooks/useProducts';
@@ -11,9 +11,10 @@ export default function Products() {
   const [query, setQuery] = useState('');
   const [editingProduct, setEditingProduct] = useState(null);
   const [isFormOpen, setIsFormOpen] = useState(false);
-  const [toast, setToast] = useState(null); // { type: 'success'|'error', message }
-  const [confirmDelete, setConfirmDelete] = useState(null); // id
+  const [toast, setToast] = useState(null);
+  const [confirmDelete, setConfirmDelete] = useState(null);
   const [page, setPage] = useState(1);
+  const [expandedProducts, setExpandedProducts] = useState(new Set());
   const perPage = 12;
 
   useEffect(() => {
@@ -35,6 +36,16 @@ export default function Products() {
   const openEdit = (p) => {
     setEditingProduct(p);
     setIsFormOpen(true);
+  };
+
+  const toggleExpand = (productId) => {
+    const newExpanded = new Set(expandedProducts);
+    if (newExpanded.has(productId)) {
+      newExpanded.delete(productId);
+    } else {
+      newExpanded.add(productId);
+    }
+    setExpandedProducts(newExpanded);
   };
 
   const handleSubmit = async (data) => {
@@ -67,31 +78,29 @@ export default function Products() {
     }
   };
 
-  /* Confirm delete modal */
-useEffect(() => {
-  if (confirmDelete !== null) {
-    const onKey = (e) => {
-      if (e.key === 'Escape') setConfirmDelete(null);
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }
-  // no cleanup if modal not open
-}, [confirmDelete]);
-
-
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (!q) return products ?? [];
+    
     return (products || []).filter(p => (
       String(p.name || '').toLowerCase().includes(q) ||
-      String(p.sku || '').toLowerCase().includes(q) ||
-      String(p.category || '').toLowerCase().includes(q)
+      String(p.baseSku || '').toLowerCase().includes(q) ||
+      String(p.category || '').toLowerCase().includes(q) ||
+      (p.variants || []).some(v => 
+        String(v.sku || '').toLowerCase().includes(q) ||
+        String(v.color || '').toLowerCase().includes(q) ||
+        String(v.size || '').toLowerCase().includes(q)
+      )
     ));
   }, [products, query]);
 
   const totalPages = Math.max(1, Math.ceil((filtered?.length || 0) / perPage));
   const pageItems = (filtered || []).slice((page - 1) * perPage, page * perPage);
+
+  // Calculate total stock for a product
+  const getTotalStock = (product) => {
+    return (product.variants || []).reduce((total, variant) => total + (variant.quantity || 0), 0);
+  };
 
   return (
     <div className="container mx-auto px-4 py-6">
@@ -99,7 +108,7 @@ useEffect(() => {
       <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 mb-6">
         <div>
           <h1 className="text-2xl font-extrabold text-slate-900">Products</h1>
-          <p className="text-sm text-slate-500">Manage inventory — add products, record sales, and keep things tidy.</p>
+          <p className="text-sm text-slate-500">Manage inventory — add products with variants, and keep things tidy.</p>
         </div>
 
         <div className="flex items-center gap-3 w-full md:w-auto">
@@ -107,7 +116,7 @@ useEffect(() => {
             <input
               value={query}
               onChange={(e) => { setQuery(e.target.value); setPage(1); }}
-              placeholder="Search by name, SKU or category"
+              placeholder="Search by name, base SKU, variant SKU, color, or size"
               className="w-full md:w-72 rounded-full border border-slate-200 px-4 py-2 pl-10 focus:outline-none focus:ring-2 focus:ring-indigo-400"
             />
             <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
@@ -157,42 +166,81 @@ useEffect(() => {
       ) : (
         <>
           {/* Grid / List of products */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {pageItems.map(p => (
-              <div key={p.id} className="bg-white rounded-lg shadow p-4 flex flex-col justify-between">
-                <div>
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <div className="text-sm text-slate-400">{p.category || 'Uncategorized'}</div>
-                      <div className="text-lg font-semibold text-slate-900">{p.name}</div>
+          <div className="bg-white rounded-lg shadow overflow-hidden">
+            {pageItems.map(product => (
+              <div key={product.id} className="border-b border-slate-100 last:border-b-0">
+                {/* Product header */}
+                <div className="p-4 flex items-center justify-between hover:bg-slate-50 cursor-pointer" onClick={() => toggleExpand(product.id)}>
+                  <div className="flex items-center gap-3">
+                    <button className="text-slate-500">
+                      {expandedProducts.has(product.id) ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+                    </button>
+                    <div className="flex-shrink-0 h-10 w-10 bg-indigo-100 rounded-lg flex items-center justify-center">
+                      <span className="text-indigo-600 font-medium">
+                        {product.name.charAt(0).toUpperCase()}
+                      </span>
                     </div>
-                    <div className="text-right">
-                      <div className="text-sm text-slate-500">SKU: {p.sku || '—'}</div>
-                      <div className="text-lg font-semibold mt-2">
-                        ${typeof p.sellingPrice === 'number' ? p.sellingPrice.toFixed(2) : '0.00'}
+                    <div>
+                      <div className="font-medium text-slate-900">{product.name}</div>
+                      <div className="text-sm text-slate-500">
+                        Base SKU: {product.baseSku || '—'} • {product.variants?.length || 0} variants
                       </div>
                     </div>
                   </div>
-
-                  <div className="mt-3 text-sm text-slate-500">{p.description || ''}</div>
-                </div>
-
-                <div className="mt-4 flex items-center justify-between gap-2">
-                  <div className="flex items-center gap-2 text-sm text-slate-600">
-                    <div className="px-2 py-1 rounded bg-slate-100">
-                      Stock: {p.quantity ?? 0}
+                  
+                  <div className="flex items-center gap-4">
+                    <div className="text-right">
+                      <div className="text-sm text-slate-500">Total stock</div>
+                      <div className="font-medium">{getTotalStock(product)}</div>
                     </div>
-                    <div className="px-2 py-1 rounded bg-slate-100">
-                      Cost: ${typeof p.costPrice === 'number' ? p.costPrice.toFixed(2) : '0.00'}
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    <button onClick={() => openEdit(p)} className="px-2 py-1 rounded border hover:bg-slate-50"><Edit3 className="w-4 h-4" /></button>
                     
-                    <button onClick={() => setConfirmDelete(p.id)} className="px-2 py-1 rounded border hover:bg-slate-50 text-rose-600"><Trash2 className="w-4 h-4" /></button>
+                    <div className="flex items-center gap-2">
+                      <button onClick={(e) => { e.stopPropagation(); openEdit(product); }} className="p-1 text-indigo-600 hover:text-indigo-900 rounded hover:bg-indigo-50">
+                        <Edit3 className="w-4 h-4" />
+                      </button>
+                      <button onClick={(e) => { e.stopPropagation(); setConfirmDelete(product.id); }} className="p-1 text-rose-600 hover:text-rose-900 rounded hover:bg-rose-50">
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
                   </div>
                 </div>
+
+                {/* Variants list */}
+                {expandedProducts.has(product.id) && (
+                  <div className="bg-slate-50 border-t border-slate-200">
+                    {product.variants?.map(variant => (
+                      <div key={variant.id} className="px-4 py-3 border-b border-slate-200 last:border-b-0">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <div className="font-medium">Variant: {variant.sku}</div>
+                            <div className="text-sm text-slate-500">
+                              {variant.color && `Color: ${variant.color}`}
+                              {variant.color && variant.size && ' • '}
+                              {variant.size && `Size: ${variant.size}`}
+                            </div>
+                          </div>
+                          
+                          <div className="flex items-center gap-6">
+                            <div className="text-right">
+                              <div className="text-sm text-slate-500">Cost</div>
+                              <div className="font-medium">${typeof variant.costPrice === 'number' ? variant.costPrice.toFixed(2) : '0.00'}</div>
+                            </div>
+                            
+                            <div className="text-right">
+                              <div className="text-sm text-slate-500">Price</div>
+                              <div className="font-medium">${typeof variant.sellingPrice === 'number' ? variant.sellingPrice.toFixed(2) : '0.00'}</div>
+                            </div>
+                            
+                            <div className="text-right">
+                              <div className="text-sm text-slate-500">Stock</div>
+                              <div className="font-medium">{variant.quantity || 0}</div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             ))}
           </div>
@@ -229,35 +277,35 @@ useEffect(() => {
       </AnimatePresence>
 
       {/* Confirm delete modal */}
-     <AnimatePresence>
-  {confirmDelete !== null && ( // render even if id is 0
-    <motion.div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4"
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-    >
-      {/* Backdrop first (lower z) — clicking it closes the modal */}
-      <motion.div
-        onClick={() => setConfirmDelete(null)}
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 0.35 }}
-        exit={{ opacity: 0 }}
-        className="fixed inset-0 bg-black/40 z-40"
-      />
+      <AnimatePresence>
+        {confirmDelete !== null && (
+          <motion.div
+            className="fixed inset-0 z-50 flex items-center justify-center p-4"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+          >
+            {/* Backdrop first (lower z) — clicking it closes the modal */}
+            <motion.div
+              onClick={() => setConfirmDelete(null)}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 0.35 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-black/40 z-40"
+            />
 
-      {/* Modal box (higher z so it's above the backdrop) */}
-      <div className="relative z-50 w-full max-w-md bg-white :bg-slate-900 rounded-2xl p-6 shadow-lg">
-        <div className="text-lg font-semibold mb-4">Confirm delete</div>
-        <div className="text-sm text-slate-500 mb-6">Are you sure you want to delete this product? This action cannot be undone.</div>
-        <div className="flex items-center justify-end gap-3">
-          <button onClick={() => setConfirmDelete(null)} className="px-3 py-2 rounded border">Cancel</button>
-          <button onClick={() => handleDelete(confirmDelete)} className="px-3 py-2 rounded bg-rose-600 text-white">Delete</button>
-        </div>
-      </div>
-    </motion.div>
-  )}
-</AnimatePresence>
+            {/* Modal box (higher z so it's above the backdrop) */}
+            <div className="relative z-50 w-full max-w-md bg-white rounded-2xl p-6 shadow-lg">
+              <div className="text-lg font-semibold mb-4">Confirm delete</div>
+              <div className="text-sm text-slate-500 mb-6">Are you sure you want to delete this product? This will also delete all its variants. This action cannot be undone.</div>
+              <div className="flex items-center justify-end gap-3">
+                <button onClick={() => setConfirmDelete(null)} className="px-3 py-2 rounded border">Cancel</button>
+                <button onClick={() => handleDelete(confirmDelete)} className="px-3 py-2 rounded bg-rose-600 text-white">Delete</button>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

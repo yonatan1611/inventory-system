@@ -1,4 +1,4 @@
-// server/routes/products.js
+// routes/products.js
 import express from 'express';
 import {
   getProducts,
@@ -6,8 +6,11 @@ import {
   createProduct,
   updateProduct,
   deleteProduct,
-  restoreProduct,       // <- make sure to import
-  hardDeleteProduct     // <- optional: import if you add a permanent delete route
+  restoreProduct,
+  hardDeleteProduct,
+  addVariant,
+  updateVariant,
+  deleteVariant
 } from '../controllers/productController.js';
 import { authenticateToken } from '../middleware/auth.js';
 import { validateProduct, handleValidationErrors } from '../middleware/validation.js';
@@ -18,14 +21,13 @@ router.get('/', authenticateToken, getProducts);
 router.get('/:id', authenticateToken, getProduct);
 router.post('/', authenticateToken, validateProduct, handleValidationErrors, createProduct);
 router.put('/:id', authenticateToken, validateProduct, handleValidationErrors, updateProduct);
-
-// soft-delete (archive)
 router.delete('/:id', authenticateToken, deleteProduct);
+router.patch('/:id/restore', authenticateToken, restoreProduct);
+router.delete('/:id/hard', authenticateToken, hardDeleteProduct);
 
-// restore (unarchive)
-router.post('/:id/restore', authenticateToken, restoreProduct);
-
-// optional: permanent delete (admin-only)
-router.delete('/:id/permanent', authenticateToken, hardDeleteProduct);
+// Variant routes
+router.post('/:productId/variants', authenticateToken, addVariant);
+router.put('/variants/:variantId', authenticateToken, updateVariant);
+router.delete('/variants/:variantId', authenticateToken, deleteVariant);
 
 export default router;

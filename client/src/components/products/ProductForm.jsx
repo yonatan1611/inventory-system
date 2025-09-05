@@ -1,17 +1,22 @@
 import React, { useState, useEffect } from 'react';
-import { X } from 'lucide-react';
+import { X, Plus, Trash2 } from 'lucide-react';
 
 const ProductForm = ({ product, onSubmit, onCancel }) => {
   const [formData, setFormData] = useState({
     name: '',
-    category: '',
-    sku: '',
-    costPrice: '',
-    sellingPrice: '',
-    quantity: '',
     description: '',
-    supplier: '',
-    minStockLevel: '',
+    category: '',
+    baseSku: '',
+    variants: [
+      {
+        sku: '',
+        color: '',
+        size: '',
+        costPrice: '',
+        sellingPrice: '',
+        quantity: ''
+      }
+    ]
   });
 
   const [errors, setErrors] = useState({});
@@ -20,14 +25,29 @@ const ProductForm = ({ product, onSubmit, onCancel }) => {
     if (product) {
       setFormData({
         name: product.name || '',
-        category: product.category || '',
-        sku: product.sku || '',
-        costPrice: product.costPrice || '',
-        sellingPrice: product.sellingPrice || '',
-        quantity: product.quantity || '',
         description: product.description || '',
-        supplier: product.supplier || '',
-        minStockLevel: product.minStockLevel || '',
+        category: product.category || '',
+        baseSku: product.baseSku || '',
+        variants: product.variants?.length > 0 
+          ? product.variants.map(v => ({
+              id: v.id,
+              sku: v.sku || '',
+              color: v.color || '',
+              size: v.size || '',
+              costPrice: v.costPrice || '',
+              sellingPrice: v.sellingPrice || '',
+              quantity: v.quantity || ''
+            }))
+          : [
+              {
+                sku: '',
+                color: '',
+                size: '',
+                costPrice: '',
+                sellingPrice: '',
+                quantity: ''
+              }
+            ]
       });
     }
   }, [product]);
@@ -48,22 +68,71 @@ const ProductForm = ({ product, onSubmit, onCancel }) => {
     }
   };
 
+  const handleVariantChange = (index, field, value) => {
+    const updatedVariants = [...formData.variants];
+    updatedVariants[index][field] = value;
+    
+    setFormData(prev => ({
+      ...prev,
+      variants: updatedVariants
+    }));
+    
+    // Clear error when user starts typing
+    if (errors[`variant-${index}-${field}`]) {
+      setErrors(prev => {
+        const newErrors = { ...prev };
+        delete newErrors[`variant-${index}-${field}`];
+        return newErrors;
+      });
+    }
+  };
+
+  const addVariant = () => {
+    setFormData(prev => ({
+      ...prev,
+      variants: [
+        ...prev.variants,
+        {
+          sku: '',
+          color: '',
+          size: '',
+          costPrice: '',
+          sellingPrice: '',
+          quantity: ''
+        }
+      ]
+    }));
+  };
+
+  const removeVariant = (index) => {
+    if (formData.variants.length <= 1) return;
+    
+    setFormData(prev => ({
+      ...prev,
+      variants: prev.variants.filter((_, i) => i !== index)
+    }));
+  };
+
   const validateForm = () => {
     const newErrors = {};
     
+    // Product validation
     if (!formData.name.trim()) newErrors.name = 'Product name is required';
     if (!formData.category.trim()) newErrors.category = 'Category is required';
-    if (!formData.sku.trim()) newErrors.sku = 'SKU is required';
-    if (!formData.costPrice || parseFloat(formData.costPrice) <= 0) 
-      newErrors.costPrice = 'Valid cost price is required';
-    if (!formData.sellingPrice || parseFloat(formData.sellingPrice) <= 0) 
-      newErrors.sellingPrice = 'Valid selling price is required';
-    if (parseFloat(formData.sellingPrice) < parseFloat(formData.costPrice))
-      newErrors.sellingPrice = 'Selling price must be greater than cost price';
-    if (!formData.quantity || parseInt(formData.quantity) < 0) 
-      newErrors.quantity = 'Valid quantity is required';
-    if (formData.minStockLevel && parseInt(formData.minStockLevel) < 0)
-      newErrors.minStockLevel = 'Minimum stock level must be 0 or higher';
+    if (!formData.baseSku.trim()) newErrors.baseSku = 'Base SKU is required';
+    
+    // Variants validation
+    formData.variants.forEach((variant, index) => {
+      if (!variant.sku.trim()) newErrors[`variant-${index}-sku`] = 'Variant SKU is required';
+      if (!variant.costPrice || parseFloat(variant.costPrice) <= 0) 
+        newErrors[`variant-${index}-costPrice`] = 'Valid cost price is required';
+      if (!variant.sellingPrice || parseFloat(variant.sellingPrice) <= 0) 
+        newErrors[`variant-${index}-sellingPrice`] = 'Valid selling price is required';
+      if (parseFloat(variant.sellingPrice) < parseFloat(variant.costPrice))
+        newErrors[`variant-${index}-sellingPrice`] = 'Selling price must be greater than cost price';
+      if (!variant.quantity || parseInt(variant.quantity) < 0) 
+        newErrors[`variant-${index}-quantity`] = 'Valid quantity is required';
+    });
     
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -76,10 +145,14 @@ const ProductForm = ({ product, onSubmit, onCancel }) => {
       // Format numeric values before submitting
       const formattedData = {
         ...formData,
-        costPrice: parseFloat(formData.costPrice),
-        sellingPrice: parseFloat(formData.sellingPrice),
-        quantity: parseInt(formData.quantity),
-        minStockLevel: formData.minStockLevel ? parseInt(formData.minStockLevel) : 0,
+        variants: formData.variants.map(variant => ({
+          ...variant,
+          costPrice: parseFloat(variant.costPrice),
+          sellingPrice: parseFloat(variant.sellingPrice),
+          quantity: parseInt(variant.quantity),
+          // Remove id if it's a new variant
+          ...(variant.id ? { id: variant.id } : {})
+        }))
       };
       
       onSubmit(formattedData);
@@ -88,7 +161,7 @@ const ProductForm = ({ product, onSubmit, onCancel }) => {
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-      <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+      <div className="bg-white rounded-xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-y-auto">
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-gray-200">
           <h2 className="text-2xl font-bold text-gray-800">
@@ -105,8 +178,8 @@ const ProductForm = ({ product, onSubmit, onCancel }) => {
         
         {/* Form */}
         <form onSubmit={handleSubmit} className="p-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Left Column */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+            {/* Left Column - Product Details */}
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -140,90 +213,31 @@ const ProductForm = ({ product, onSubmit, onCancel }) => {
                   <option value="">Select a category</option>
                   <option value="Electronics">Electronics</option>
                   <option value="Clothing">Clothing</option>
+                  <option value="Footwear">Footwear</option>
+                  <option value="Accessories">Accessories</option>
                   <option value="Other">Other</option>
                 </select>
                 {errors.category && <p className="mt-1 text-sm text-red-500">{errors.category}</p>}
               </div>
-              
+            </div>
+            
+            {/* Right Column - Product Details */}
+            <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  SKU (Stock Keeping Unit) <span className="text-red-500">*</span>
+                  Base SKU <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="text"
-                  name="sku"
-                  value={formData.sku}
+                  name="baseSku"
+                  value={formData.baseSku}
                   onChange={handleChange}
                   className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
-                    errors.sku ? 'border-red-500' : 'border-gray-300'
+                    errors.baseSku ? 'border-red-500' : 'border-gray-300'
                   }`}
                   placeholder="e.g., PROD-001"
                 />
-                {errors.sku && <p className="mt-1 text-sm text-red-500">{errors.sku}</p>}
-              </div>
-            </div>
-            
-            {/* Right Column */}
-            <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Cost Price ($) <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    name="costPrice"
-                    value={formData.costPrice}
-                    onChange={handleChange}
-                    className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
-                      errors.costPrice ? 'border-red-500' : 'border-gray-300'
-                    }`}
-                    placeholder="0.00"
-                  />
-                  {errors.costPrice && <p className="mt-1 text-sm text-red-500">{errors.costPrice}</p>}
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Selling Price ($) <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    name="sellingPrice"
-                    value={formData.sellingPrice}
-                    onChange={handleChange}
-                    className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
-                      errors.sellingPrice ? 'border-red-500' : 'border-gray-300'
-                    }`}
-                    placeholder="0.00"
-                  />
-                  {errors.sellingPrice && <p className="mt-1 text-sm text-red-500">{errors.sellingPrice}</p>}
-                </div>
-              </div>
-              
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Quantity <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="number"
-                    min="0"
-                    name="quantity"
-                    value={formData.quantity}
-                    onChange={handleChange}
-                    className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
-                      errors.quantity ? 'border-red-500' : 'border-gray-300'
-                    }`}
-                    placeholder="0"
-                  />
-                  {errors.quantity && <p className="mt-1 text-sm text-red-500">{errors.quantity}</p>}
-                </div>
-                
+                {errors.baseSku && <p className="mt-1 text-sm text-red-500">{errors.baseSku}</p>}
               </div>
               
               <div>
@@ -240,6 +254,140 @@ const ProductForm = ({ product, onSubmit, onCancel }) => {
                 />
               </div>
             </div>
+          </div>
+          
+          {/* Variants Section */}
+          <div className="border-t border-gray-200 pt-6 mb-6">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-medium text-gray-800">Product Variants</h3>
+              <button
+                type="button"
+                onClick={addVariant}
+                className="flex items-center gap-2 text-indigo-600 hover:text-indigo-800"
+              >
+                <Plus className="w-4 h-4" />
+                Add Variant
+              </button>
+            </div>
+            
+            {formData.variants.map((variant, index) => (
+              <div key={index} className="bg-gray-50 p-4 rounded-lg mb-4 relative">
+                {formData.variants.length > 1 && (
+                  <button
+                    type="button"
+                    onClick={() => removeVariant(index)}
+                    className="absolute top-3 right-3 text-red-500 hover:text-red-700"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                )}
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Variant SKU <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={variant.sku}
+                      onChange={(e) => handleVariantChange(index, 'sku', e.target.value)}
+                      className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-1 focus:ring-indigo-500 ${
+                        errors[`variant-${index}-sku`] ? 'border-red-500' : 'border-gray-300'
+                      }`}
+                      placeholder="Variant SKU"
+                    />
+                    {errors[`variant-${index}-sku`] && (
+                      <p className="mt-1 text-xs text-red-500">{errors[`variant-${index}-sku`]}</p>
+                    )}
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Color
+                    </label>
+                    <input
+                      type="text"
+                      value={variant.color}
+                      onChange={(e) => handleVariantChange(index, 'color', e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                      placeholder="Color"
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Size
+                    </label>
+                    <input
+                      type="text"
+                      value={variant.size}
+                      onChange={(e) => handleVariantChange(index, 'size', e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                      placeholder="Size"
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Cost Price <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      value={variant.costPrice}
+                      onChange={(e) => handleVariantChange(index, 'costPrice', e.target.value)}
+                      className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-1 focus:ring-indigo-500 ${
+                        errors[`variant-${index}-costPrice`] ? 'border-red-500' : 'border-gray-300'
+                      }`}
+                      placeholder="0.00"
+                    />
+                    {errors[`variant-${index}-costPrice`] && (
+                      <p className="mt-1 text-xs text-red-500">{errors[`variant-${index}-costPrice`]}</p>
+                    )}
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Selling Price <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      value={variant.sellingPrice}
+                      onChange={(e) => handleVariantChange(index, 'sellingPrice', e.target.value)}
+                      className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-1 focus:ring-indigo-500 ${
+                        errors[`variant-${index}-sellingPrice`] ? 'border-red-500' : 'border-gray-300'
+                      }`}
+                      placeholder="0.00"
+                    />
+                    {errors[`variant-${index}-sellingPrice`] && (
+                      <p className="mt-1 text-xs text-red-500">{errors[`variant-${index}-sellingPrice`]}</p>
+                    )}
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Quantity <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="number"
+                      min="0"
+                      value={variant.quantity}
+                      onChange={(e) => handleVariantChange(index, 'quantity', e.target.value)}
+                      className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-1 focus:ring-indigo-500 ${
+                        errors[`variant-${index}-quantity`] ? 'border-red-500' : 'border-gray-300'
+                      }`}
+                      placeholder="0"
+                    />
+                    {errors[`variant-${index}-quantity`] && (
+                      <p className="mt-1 text-xs text-red-500">{errors[`variant-${index}-quantity`]}</p>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ))}
           </div>
           
           {/* Form Actions */}

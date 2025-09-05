@@ -1,7 +1,7 @@
 // src/pages/Sales.js
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, DollarSign, X, Plus, Minus, Trash2, Package } from 'lucide-react';
+import { Search, DollarSign, X, Plus, Minus, Trash2, Package, ChevronDown, ChevronRight } from 'lucide-react';
 import { useProducts } from '../hooks/useProducts';
 
 export default function Sales() {
@@ -9,7 +9,8 @@ export default function Sales() {
   const [query, setQuery] = useState('');
   const [saleItems, setSaleItems] = useState([]);
   const [toast, setToast] = useState(null);
-  const [refillModal, setRefillModal] = useState({ isOpen: false, product: null, quantity: '' });
+  const [refillModal, setRefillModal] = useState({ isOpen: false, product: null, variant: null, quantity: '' });
+  const [expandedProducts, setExpandedProducts] = useState(new Set());
 
   useEffect(() => {
     if (error) {
@@ -22,45 +23,58 @@ export default function Sales() {
     setTimeout(() => setToast(null), ms);
   };
 
-  const addProductToSale = (product) => {
-    // Check if product is already in the sale
-    const existingItem = saleItems.find(item => item.id === product.id);
+  const toggleExpand = (productId) => {
+    const newExpanded = new Set(expandedProducts);
+    if (newExpanded.has(productId)) {
+      newExpanded.delete(productId);
+    } else {
+      newExpanded.add(productId);
+    }
+    setExpandedProducts(newExpanded);
+  };
+
+  const addVariantToSale = (variant, product) => {
+    // Check if variant is already in the sale
+    const existingItem = saleItems.find(item => item.variantId === variant.id);
     
     if (existingItem) {
       // Increase quantity if already in sale
       setSaleItems(prev => 
         prev.map(item => 
-          item.id === product.id 
+          item.variantId === variant.id 
             ? { ...item, saleQuantity: item.saleQuantity + 1 } 
             : item
         )
       );
     } else {
-      // Add new product to sale with default values
+      // Add new variant to sale with default values
       setSaleItems(prev => [
         ...prev, 
         { 
-          ...product, 
+          ...variant,
+          productId: product.id,
+          productName: product.name,
+          variantId: variant.id,
           saleQuantity: 1, 
           saleDiscount: 0,
-          salePrice: product.sellingPrice
+          salePrice: variant.sellingPrice
         }
       ]);
     }
     
-    showToast('success', `${product.name} added to sale`);
+    showToast('success', `${product.name} - ${variant.sku} added to sale`);
   };
 
-  const updateSaleItem = (id, field, value) => {
+  const updateSaleItem = (variantId, field, value) => {
     setSaleItems(prev =>
       prev.map(item =>
-        item.id === id ? { ...item, [field]: value } : item
+        item.variantId === variantId ? { ...item, [field]: value } : item
       )
     );
   };
 
-  const removeSaleItem = (id) => {
-    setSaleItems(prev => prev.filter(item => item.id !== id));
+  const removeSaleItem = (variantId) => {
+    setSaleItems(prev => prev.filter(item => item.variantId !== variantId));
   };
 
   const calculateItemTotal = (item) => {
@@ -78,7 +92,7 @@ export default function Sales() {
 
   const processSale = async () => {
     if (saleItems.length === 0) {
-      showToast('error', 'Please add products to the sale');
+      showToast('error', 'Please add variants to the sale');
       return;
     }
 
@@ -87,7 +101,7 @@ export default function Sales() {
       const results = await Promise.all(
         saleItems.map(async (item) => {
           return await sellProduct(
-            item.id, 
+            item.variantId, 
             Number(item.saleQuantity), 
             { discount: Number(item.saleDiscount) }
           );
@@ -111,20 +125,20 @@ export default function Sales() {
   };
 
   const handleRefill = async () => {
-    if (!refillModal.product || !refillModal.quantity) {
+    if (!refillModal.variant || !refillModal.quantity) {
       showToast('error', 'Please enter a valid quantity');
       return;
     }
 
     try {
-      const newQuantity = Number(refillModal.product.quantity) + Number(refillModal.quantity);
-      await updateProduct(refillModal.product.id, {
-        ...refillModal.product,
+      const newQuantity = Number(refillModal.variant.quantity) + Number(refillModal.quantity);
+      await updateProduct(refillModal.variant.id, {
+        ...refillModal.variant,
         quantity: newQuantity
       });
       
-      showToast('success', `Added ${refillModal.quantity} units to ${refillModal.product.name}`);
-      setRefillModal({ isOpen: false, product: null, quantity: '' });
+      showToast('success', `Added ${refillModal.quantity} units to ${refillModal.product.name} - ${refillModal.variant.sku}`);
+      setRefillModal({ isOpen: false, product: null, variant: null, quantity: '' });
       refetch?.();
     } catch (err) {
       console.error(err);
@@ -134,8 +148,13 @@ export default function Sales() {
 
   const filteredProducts = products?.filter(p => 
     String(p.name || '').toLowerCase().includes(query.trim().toLowerCase()) ||
-    String(p.sku || '').toLowerCase().includes(query.trim().toLowerCase()) ||
-    String(p.category || '').toLowerCase().includes(query.trim().toLowerCase())
+    String(p.baseSku || '').toLowerCase().includes(query.trim().toLowerCase()) ||
+    String(p.category || '').toLowerCase().includes(query.trim().toLowerCase()) ||
+    (p.variants || []).some(v => 
+      String(v.sku || '').toLowerCase().includes(q) ||
+      String(v.color || '').toLowerCase().includes(q) ||
+      String(v.size || '').toLowerCase().includes(q)
+    )
   ) || [];
 
   return (
@@ -146,14 +165,14 @@ export default function Sales() {
         {/* Product Selection */}
         <div>
           <div className="bg-white rounded-lg shadow p-4 mb-6">
-            <h2 className="text-lg font-semibold mb-4">Add Products to Sale</h2>
+            <h2 className="text-lg font-semibold mb-4">Add Variants to Sale</h2>
             
             {/* Search */}
             <div className="relative mb-4">
               <input
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                placeholder="Search products..."
+                placeholder="Search products or variants..."
                 className="w-full rounded-lg border border-slate-200 px-4 py-2 pl-10 focus:outline-none focus:ring-2 focus:ring-indigo-400"
               />
               <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
@@ -162,39 +181,84 @@ export default function Sales() {
             {/* Product List */}
             <div className="max-h-96 overflow-y-auto">
               {filteredProducts.map(product => (
-                <div
-                  key={product.id}
-                  className={`p-3 border-b border-slate-100 flex justify-between items-center ${
-                    product.quantity === 0 ? 'bg-rose-50' : ''
-                  }`}
-                >
-                  <div className="flex-1">
-                    <div className="font-medium">{product.name}</div>
-                    <div className="text-sm text-slate-500">
-                      SKU: {product.sku || '—'} | Stock: {product.quantity} | ${product.sellingPrice?.toFixed(2)}
+                <div key={product.id} className="border-b border-slate-100 last:border-b-0">
+                  {/* Product header */}
+                  <div className="p-3 flex items-center justify-between hover:bg-slate-50 cursor-pointer" onClick={() => toggleExpand(product.id)}>
+                    <div className="flex items-center gap-3">
+                      <button className="text-slate-500">
+                        {expandedProducts.has(product.id) ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+                      </button>
+                      <div className="flex-shrink-0 h-8 w-8 bg-indigo-100 rounded-lg flex items-center justify-center">
+                        <span className="text-indigo-600 font-medium text-xs">
+                          {product.name.charAt(0).toUpperCase()}
+                        </span>
+                      </div>
+                      <div>
+                        <div className="font-medium text-slate-900">{product.name}</div>
+                        <div className="text-sm text-slate-500">
+                          Base SKU: {product.baseSku || '—'} • {product.variants?.length || 0} variants
+                        </div>
+                      </div>
                     </div>
-                    {product.quantity === 0 && (
-                      <div className="text-xs text-rose-600 mt-1">Out of stock</div>
-                    )}
                   </div>
-                  <div className="flex items-center gap-2">
-                    {product.quantity === 0 ? (
-                      <button
-                        onClick={() => setRefillModal({ isOpen: true, product, quantity: '' })}
-                        className="px-3 py-1 bg-amber-600 text-white rounded flex items-center"
-                      >
-                        <Package className="w-4 h-4 mr-1" />
-                        Refill
-                      </button>
-                    ) : (
-                      <button
-                        onClick={() => addProductToSale(product)}
-                        className="px-3 py-1 bg-indigo-600 text-white rounded"
-                      >
-                        <Plus className="w-4 h-4" />
-                      </button>
-                    )}
-                  </div>
+
+                  {/* Variants list */}
+                  {expandedProducts.has(product.id) && (
+                    <div className="bg-slate-50 border-t border-slate-200">
+                      {product.variants?.map(variant => (
+                        <div key={variant.id} className="px-3 py-2 border-b border-slate-200 last:border-b-0 flex justify-between items-center">
+                          <div>
+                            <div className="font-medium">Variant: {variant.sku}</div>
+                            <div className="text-sm text-slate-500">
+                              {variant.color && `Color: ${variant.color}`}
+                              {variant.color && variant.size && ' • '}
+                              {variant.size && `Size: ${variant.size}`}
+                              {variant.quantity === 0 && (
+                                <span className="text-rose-600 ml-2">• Out of stock</span>
+                              )}
+                            </div>
+                          </div>
+                          
+                          <div className="flex items-center gap-4">
+                            <div className="text-right">
+                              <div className="text-sm text-slate-500">Price</div>
+                              <div className="font-medium">${typeof variant.sellingPrice === 'number' ? variant.sellingPrice.toFixed(2) : '0.00'}</div>
+                            </div>
+                            
+                            <div className="text-right">
+                              <div className="text-sm text-slate-500">Stock</div>
+                              <div className="font-medium">{variant.quantity || 0}</div>
+                            </div>
+                            
+                            <div className="flex items-center gap-2">
+                              {variant.quantity === 0 ? (
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setRefillModal({ isOpen: true, product, variant, quantity: '' });
+                                  }}
+                                  className="px-2 py-1 bg-amber-600 text-white rounded flex items-center text-sm"
+                                >
+                                  <Package className="w-3 h-3 mr-1" />
+                                  Refill
+                                </button>
+                              ) : (
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    addVariantToSale(variant, product);
+                                  }}
+                                  className="px-2 py-1 bg-indigo-600 text-white rounded"
+                                >
+                                  <Plus className="w-3 h-3" />
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               ))}
               
@@ -214,22 +278,24 @@ export default function Sales() {
             
             {saleItems.length === 0 ? (
               <div className="text-center py-8 text-slate-500">
-                Add products to begin a sale
+                Add variants to begin a sale
               </div>
             ) : (
               <>
                 <div className="max-h-96 overflow-y-auto mb-4">
                   {saleItems.map(item => (
-                    <div key={item.id} className="p-3 border-b border-slate-100">
+                    <div key={item.variantId} className="p-3 border-b border-slate-100">
                       <div className="flex justify-between items-start mb-2">
                         <div className="flex-1">
-                          <div className="font-medium">{item.name}</div>
+                          <div className="font-medium">{item.productName} - {item.sku}</div>
                           <div className="text-sm text-slate-500">
-                            SKU: {item.sku || '—'} | Stock: {item.quantity}
+                            {item.color && `Color: ${item.color}`}
+                            {item.color && item.size && ' • '}
+                            {item.size && `Size: ${item.size}`}
                           </div>
                         </div>
                         <button
-                          onClick={() => removeSaleItem(item.id)}
+                          onClick={() => removeSaleItem(item.variantId)}
                           className="text-rose-600 hover:text-rose-800 ml-2"
                         >
                           <Trash2 className="w-4 h-4" />
@@ -242,7 +308,7 @@ export default function Sales() {
                           <div className="flex">
                             <button
                               onClick={() => updateSaleItem(
-                                item.id, 
+                                item.variantId, 
                                 'saleQuantity', 
                                 Math.max(1, (Number(item.saleQuantity) || 1) - 1)
                               )}
@@ -259,20 +325,20 @@ export default function Sales() {
                                 const value = e.target.value;
                                 // Allow empty string temporarily
                                 if (value === '' || /^\d*$/.test(value)) {
-                                  updateSaleItem(item.id, 'saleQuantity', value);
+                                  updateSaleItem(item.variantId, 'saleQuantity', value);
                                 }
                               }}
                               onBlur={(e) => {
                                 let value = parseInt(e.target.value) || 1;
                                 if (value < 1) value = 1;
                                 if (value > item.quantity) value = item.quantity;
-                                updateSaleItem(item.id, 'saleQuantity', value);
+                                updateSaleItem(item.variantId, 'saleQuantity', value);
                               }}
                               className="w-full px-2 py-1 border-y text-center"
                             />
                             <button
                               onClick={() => updateSaleItem(
-                                item.id, 
+                                item.variantId, 
                                 'saleQuantity', 
                                 Math.min(item.quantity, (Number(item.saleQuantity) || 0) + 1)
                               )}
@@ -294,13 +360,13 @@ export default function Sales() {
                               const value = e.target.value;
                               // Allow decimal numbers
                               if (value === '' || /^\d*\.?\d*$/.test(value)) {
-                                updateSaleItem(item.id, 'salePrice', value);
+                                updateSaleItem(item.variantId, 'salePrice', value);
                               }
                             }}
                             onBlur={(e) => {
                               let value = parseFloat(e.target.value) || 0;
                               if (value < 0) value = 0;
-                              updateSaleItem(item.id, 'salePrice', value);
+                              updateSaleItem(item.variantId, 'salePrice', value);
                             }}
                             className="w-full px-2 py-1 border rounded text-right"
                           />
@@ -317,14 +383,14 @@ export default function Sales() {
                               const value = e.target.value;
                               // Allow empty string temporarily
                               if (value === '' || /^\d*$/.test(value)) {
-                                updateSaleItem(item.id, 'saleDiscount', value);
+                                updateSaleItem(item.variantId, 'saleDiscount', value);
                               }
                             }}
                             onBlur={(e) => {
                               let value = parseInt(e.target.value) || 0;
                               if (value < 0) value = 0;
                               if (value > 10000) value = 10000;
-                              updateSaleItem(item.id, 'saleDiscount', value);
+                              updateSaleItem(item.variantId, 'saleDiscount', value);
                             }}
                             className="w-full px-2 py-1 border rounded text-right"
                           />
@@ -374,7 +440,7 @@ export default function Sales() {
               className="bg-white rounded-lg shadow-lg p-6 w-full max-w-md"
             >
               <h2 className="text-xl font-semibold mb-4">Refill Stock</h2>
-              <p className="mb-4">How many units would you like to add to <strong>{refillModal.product?.name}</strong>?</p>
+              <p className="mb-4">How many units would you like to add to <strong>{refillModal.product?.name} - {refillModal.variant?.sku}</strong>?</p>
               
               <div className="mb-6">
                 <label className="block text-sm font-medium mb-2">Quantity to Add</label>
@@ -400,7 +466,7 @@ export default function Sales() {
               
               <div className="flex justify-end gap-3">
                 <button
-                  onClick={() => setRefillModal({ isOpen: false, product: null, quantity: '' })}
+                  onClick={() => setRefillModal({ isOpen: false, product: null, variant: null, quantity: '' })}
                   className="px-4 py-2 border border-gray-300 rounded"
                 >
                   Cancel

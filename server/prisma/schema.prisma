@@ -18,18 +18,34 @@ model User {
 }
 
 model Product {
-  id           Int           @id @default(autoincrement())
+  id           Int              @id @default(autoincrement())
   name         String
-  quantity     Int
-  createdAt    DateTime      @default(now())
+  createdAt    DateTime         @default(now())
   category     String
-  costPrice    Float
-  sellingPrice Float
-  archived     Boolean       @default(false)
-  sku          String        @unique
-  updatedAt    DateTime      @updatedAt
+  archived     Boolean          @default(false)
+  variants     ProductVariant[]
+  baseSku      String           @unique
+  description  String?
+  updatedAt    DateTime         @updatedAt
   transactions Transaction[]
   activities   Activity[] // Add this line
+}
+
+model ProductVariant {
+  id           Int      @id @default(autoincrement())
+  productId    Int
+  product      Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  sku          String // Variant-specific SKU
+  color        String?
+  size         String?
+  costPrice    Float
+  sellingPrice Float
+  quantity     Int
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@unique([productId, color, size])
+  @@unique([sku])
 }
 
 model Activity {

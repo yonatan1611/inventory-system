@@ -25,7 +25,7 @@ const normalizedUserId = userId?.userId || userId;
         product: {
           select: {
             name: true,
-            sku: true,
+            baseSku: true,
           },
         },
       },
@@ -51,7 +51,7 @@ const normalizedUserId = userId?.userId || userId;
           product: {
             select: {
               name: true,
-              sku: true,
+              baseSku: true,
             },
           },
         },
@@ -87,7 +87,7 @@ const normalizedUserId = userId?.userId || userId;
           product: {
             select: {
               name: true,
-              sku: true,
+              baseSku: true,
             },
           },
         },

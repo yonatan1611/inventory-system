@@ -7,7 +7,7 @@ export const Product = {
     where: { id: parseInt(id) },
     include: { transactions: true }
   }),
-  findBySKU: (sku) => prisma.product.findUnique({ where: { sku } }),
+  findBySKU: (baseSku) => prisma.product.findUnique({ where: { baseSku } }),
   create: (data) => prisma.product.create({ data }),
   update: (id, data) => prisma.product.update({
     where: { id: parseInt(id) },
