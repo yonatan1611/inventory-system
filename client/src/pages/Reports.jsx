@@ -7,6 +7,7 @@ import {
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import * as XLSX from 'xlsx';
+import { safeNum } from '../utils/numberUtils';
 
 const Reports = () => {
   const [salesByProduct, setSalesByProduct] = useState([]);
@@ -15,19 +16,55 @@ const Reports = () => {
   const [profitByMonth, setProfitByMonth] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('sales');
+  const [period, setPeriod] = useState('total'); // 'week' | 'month' | 'year' | 'total'
 
-  useEffect(() => {
-    Promise.all([
-      api.get('/reports/sales-by-product'),
-      api.get('/reports/sales-by-month'),
-      api.get('/reports/inventory-categories')
-    ]).then(([salesProductRes, salesMonthRes, inventoryCatRes]) => {
-      setSalesByProduct(salesProductRes.data.data || []);
-      setSalesByMonth(salesMonthRes.data.data || []);
-      setInventoryByCategory(inventoryCatRes.data.data || []);
-      setProfitByMonth(salesMonthRes.data.data || []); // <-- Use salesByMonth for profitByMonth
-    }).finally(() => setLoading(false));
-  }, []);
+useEffect(() => {
+  const normalizeSalesByProduct = (arr) => (arr || []).map(p => ({
+    name: p.name ?? 'Unknown',
+    quantity: Number(p.quantity) || 0,
+    revenue: safeNum(p.revenue),
+    profit: safeNum(p.profit),
+    ...p
+  }));
+
+  const normalizeSalesByMonth = (arr) => (arr || []).map(m => ({
+    name: m.name ?? '',
+    sales: safeNum(m.sales),
+    profit: safeNum(m.profit),
+    ...m
+  }));
+
+const normalizeInventoryByCategory = (arr) => (arr || []).map(c => ({
+  name: c.name ?? 'Uncategorized',
+  value: Number(c.value) || 0,
+  items: Number(c.items) || 0,
+  ...c
+}));
+
+  setLoading(true);
+  Promise.all([
+    api.get('/reports/sales-by-product'),
+    api.get('/reports/sales-by-month'),
+    api.get('/reports/inventory-categories')
+  ]).then(([salesProductRes, salesMonthRes, inventoryCatRes]) => {
+    const salesProductData = salesProductRes.data?.data ?? [];
+    const salesMonthData = salesMonthRes.data?.data ?? [];
+    const inventoryCatData = inventoryCatRes.data?.data ?? [];
+
+    setSalesByProduct(normalizeSalesByProduct(salesProductData));
+    setSalesByMonth(normalizeSalesByMonth(salesMonthData));
+    setInventoryByCategory(normalizeInventoryByCategory(inventoryCatData));
+    setProfitByMonth(normalizeSalesByMonth(salesMonthData));
+  }).catch(err => {
+    console.error('Reports fetch error', err);
+    setSalesByProduct([]);
+    setSalesByMonth([]);
+    setInventoryByCategory([]);
+    setProfitByMonth([]);
+  }).finally(() => {
+    setLoading(false);
+  });
+}, []);
 
   const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8', '#82CA9D'];
 
@@ -40,8 +77,8 @@ const Reports = () => {
       body: salesByProduct.map(p => [
         p.name,
         p.quantity,
-        p.revenue?.toFixed(2),
-        p.profit?.toFixed(2)
+        Number(p.revenue ?? 0).toFixed(2),
+        Number(p.profit ?? 0).toFixed(2)
       ])
     });
     doc.save('report.pdf');
@@ -59,6 +96,62 @@ const Reports = () => {
   const handlePrint = () => {
     window.print();
   };
+
+  const handlePeriodChange = (e) => {
+  setPeriod(e.target.value);
+};
+
+useEffect(() => {
+  const getDateRange = () => {
+    const now = new Date();
+    let startDate, endDate = now.toISOString();
+
+    if (period === 'week') {
+      const firstDay = new Date(now);
+      firstDay.setDate(now.getDate() - 7);
+      startDate = firstDay.toISOString();
+    } else if (period === 'month') {
+      const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
+      startDate = firstDay.toISOString();
+    } else if (period === 'year') {
+      const firstDay = new Date(now.getFullYear(), 0, 1);
+      startDate = firstDay.toISOString();
+    } else {
+      startDate = null; // total — don’t filter
+    }
+
+    return { startDate, endDate };
+  };
+
+  const { startDate, endDate } = getDateRange();
+
+  setLoading(true);
+  Promise.all([
+    api.get('/reports/sales-by-product', { params: { startDate, endDate } }),
+    api.get('/reports/sales-by-month', { params: { startDate, endDate } }),
+    api.get('/reports/inventory-categories', { params: { startDate, endDate } })
+  ])
+    .then(([salesProductRes, salesMonthRes, inventoryCatRes]) => {
+      const salesProductData = salesProductRes.data?.data ?? [];
+      const salesMonthData = salesMonthRes.data?.data ?? [];
+      const inventoryCatData = inventoryCatRes.data?.data ?? [];
+
+      setSalesByProduct(salesProductData);
+      setSalesByMonth(salesMonthData);
+      setInventoryByCategory(inventoryCatData);
+      setProfitByMonth(salesMonthData);
+    })
+    .catch(err => {
+      console.error('Reports fetch error', err);
+      setSalesByProduct([]);
+      setSalesByMonth([]);
+      setInventoryByCategory([]);
+      setProfitByMonth([]);
+    })
+    .finally(() => {
+      setLoading(false);
+    });
+}, [period]); // add period as dependency
 
   if (loading) return (
     <div className="flex justify-center items-center h-64">
@@ -102,6 +195,20 @@ const Reports = () => {
         </nav>
       </div>
 
+      <div className="flex items-center justify-end mb-6">
+  <label className="mr-2 text-sm font-medium text-gray-600">View:</label>
+  <select
+    value={period}
+    onChange={handlePeriodChange}
+    className="border rounded-lg p-2 text-sm"
+  >
+    <option value="total">Total</option>
+    <option value="week">This Week</option>
+    <option value="month">This Month</option>
+    <option value="year">This Year</option>
+  </select>
+</div>
+
       {/* Sales Analysis Tab */}
       {activeTab === 'sales' && (
         <div className="space-y-6">
@@ -140,8 +247,8 @@ const Reports = () => {
                             {product.quantity}
                           </span>
                         </td>
-                        <td className="px-6 py-4">${product.revenue?.toFixed(2) || '0.00'}</td>
-                        <td className="px-6 py-4 font-medium text-green-600">${product.profit?.toFixed(2) || '0.00'}</td>
+                        <td className="px-6 py-4">${Number(product.revenue ?? 0).toFixed(2)}</td>
+                        <td className="px-6 py-4 font-medium text-green-600">${Number(product.profit ?? 0).toFixed(2)}</td>
                       </tr>
                     ))}
                   </tbody>
