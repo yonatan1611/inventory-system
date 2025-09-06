@@ -16,6 +16,7 @@ const Reports = () => {
   const [profitByMonth, setProfitByMonth] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('sales');
+  const [profit, setProfit] = useState({});
   const [period, setPeriod] = useState('total'); // 'week' | 'month' | 'year' | 'total'
 
 useEffect(() => {
@@ -136,6 +137,7 @@ useEffect(() => {
       const salesMonthData = salesMonthRes.data?.data ?? [];
       const inventoryCatData = inventoryCatRes.data?.data ?? [];
 
+      setProfit(profitData);
       setSalesByProduct(salesProductData);
       setSalesByMonth(salesMonthData);
       setInventoryByCategory(inventoryCatData);

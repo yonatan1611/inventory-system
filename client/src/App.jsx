@@ -1,8 +1,6 @@
-import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import Navbar from './components/common/Navbar';
-import Sidebar from './components/common/Sidebar';
 import Login from './pages/Login';
 import Products from './pages/Products';
 import TransactionHistory from './pages/TransactionHistory';

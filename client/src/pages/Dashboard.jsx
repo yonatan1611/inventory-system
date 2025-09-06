@@ -103,7 +103,7 @@ const Dashboard = () => {
         </div>
         
         <div className="relative z-10 container mx-auto px-4 h-full flex flex-col justify-center text-white">
-          <h1 className="text-4xl md:text-5xl font-bold mb-4">Ferehiwot Zeleke <span className="text-indigo-700">Store Management</span></h1>
+          <h1 className="text-4xl md:text-5xl font-bold mb-4 text-purple-800">Ferehiwot Zeleke <span className="text-indigo-700">Store Management</span></h1>
           <p className="text-lg md:text-xl max-w-2xl mb-8 text-indigo-700">
             Get real-time insights into your inventory, sales performance, and business growth
           </p>
@@ -159,7 +159,7 @@ const Dashboard = () => {
               </svg>
             </div>
             <div>
-              <div className="text-2xl font-bold text-gray-800">${stats.totalProfit.toFixed(2)}</div>
+              <div className="text-2xl font-bold text-gray-800">Birr {stats.totalProfit.toFixed(2)}</div>
               <div className="text-gray-500">Total Profit</div>
               <div className="text-sm text-red-500 mt-1">
                 <svg className="w-4 h-4 inline mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -177,7 +177,7 @@ const Dashboard = () => {
               </svg>
             </div>
             <div>
-              <div className="text-2xl font-bold text-gray-800">${stats.inventoryValue.toFixed(2)}</div>
+              <div className="text-2xl font-bold text-gray-800">Birr {stats.inventoryValue.toFixed(2)}</div>
               <div className="text-gray-500">Inventory Value</div>
               <div className="text-sm text-green-500 mt-1">
                 <svg className="w-4 h-4 inline mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">

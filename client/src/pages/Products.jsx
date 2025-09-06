@@ -217,28 +217,30 @@ export default function Products() {
               <div className="flex items-center justify-between">
                 <div>
                   {/* Add this line for variant SKU */}
-                  <div className="font-medium">Variant: {variant.sku}</div>
-                  <div className="text-sm text-slate-500">
-                    {variant.color && `Color: ${variant.color}`}
+                  <div className="font-medium text-indigo-700">
+                     {variant.color && `Color: ${variant.color}`}
                     {variant.color && variant.size && ' • '}
                     {variant.size && `Size: ${variant.size}`}
+                  </div>
+                  <div className="text-sm text-slate-500">
+                    Variant: {variant.sku}
                   </div>
                 </div>
                 
                 <div className="flex items-center gap-6">
                   <div className="text-right">
                     <div className="text-sm text-slate-500">Cost</div>
-                    <div className="font-medium">${typeof variant.costPrice === 'number' ? variant.costPrice.toFixed(2) : '0.00'}</div>
+                    <div className="font-medium text-red-600">Birr {typeof variant.costPrice === 'number' ? variant.costPrice.toFixed(2) : '0.00'}</div>
                   </div>
                   
                   <div className="text-right">
                     <div className="text-sm text-slate-500">Price</div>
-                    <div className="font-medium">${typeof variant.sellingPrice === 'number' ? variant.sellingPrice.toFixed(2) : '0.00'}</div>
+                    <div className="font-medium text-red-600">Birr {typeof variant.sellingPrice === 'number' ? variant.sellingPrice.toFixed(2) : '0.00'}</div>
                   </div>
                   
                   <div className="text-right">
                     <div className="text-sm text-slate-500">Stock</div>
-                    <div className="font-medium">{variant.quantity || 0}</div>
+                    <div className="font-medium text-red-600">{variant.quantity || 0}</div>
                   </div>
                 </div>
               </div>

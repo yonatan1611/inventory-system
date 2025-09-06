@@ -213,8 +213,7 @@ const filteredProducts = products?.filter(p => {
                         <div key={variant.id} className="px-3 py-2 border-b border-slate-200 last:border-b-0 flex justify-between items-center">
                           <div>
                             {/* Add this line for variant SKU */}
-                            <div className="font-medium">Variant: {variant.sku}</div>
-                            <div className="text-sm text-slate-500">
+                            <div className="font-medium text-indigo-700">
                               {variant.color && `Color: ${variant.color}`}
                               {variant.color && variant.size && ' • '}
                               {variant.size && `Size: ${variant.size}`}
@@ -222,17 +221,20 @@ const filteredProducts = products?.filter(p => {
                                 <span className="text-rose-600 ml-2">• Out of stock</span>
                               )}
                             </div>
+                            <div className="text-sm text-slate-500">
+                              Variant: {variant.sku}
+                            </div>
                           </div>
                           
                           <div className="flex items-center gap-4">
                             <div className="text-right">
                               <div className="text-sm text-slate-500">Price</div>
-                              <div className="font-medium">${typeof variant.sellingPrice === 'number' ? variant.sellingPrice.toFixed(2) : '0.00'}</div>
+                              <div className="font-medium text-red-600">Birr {typeof variant.sellingPrice === 'number' ? variant.sellingPrice.toFixed(2) : '0.00'}</div>
                             </div>
                             
                             <div className="text-right">
                               <div className="text-sm text-slate-500">Stock</div>
-                              <div className="font-medium">{variant.quantity || 0}</div>
+                              <div className="font-medium text-red-600">{variant.quantity || 0}</div>
                             </div>
                             
                             <div className="flex items-center gap-2">
