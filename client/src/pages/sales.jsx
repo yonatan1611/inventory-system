@@ -406,7 +406,7 @@ const filteredProducts = products?.filter(p => {
                       </div>
                       
                       <div className="text-right mt-2 font-medium">
-                        ${calculateItemTotal(item).toFixed(2)}
+                        Birr {calculateItemTotal(item).toFixed(2)}
                       </div>
                     </div>
                   ))}
@@ -415,7 +415,7 @@ const filteredProducts = products?.filter(p => {
                 <div className="border-t pt-4">
                   <div className="flex justify-between text-lg font-bold mb-4">
                     <span>Grand Total:</span>
-                    <span>${calculateGrandTotal().toFixed(2)}</span>
+                    <span>Birr {calculateGrandTotal().toFixed(2)}</span>
                   </div>
                   
                   <button
