@@ -82,7 +82,7 @@ npm install
 3. Environment Setup
 ```bash
 PORT=5000
-PostgresDB_URI=mongodb://localhost:27017/inventory-system
+PostgresDB_URI=postgresql://localhost:27017/inventory-system
 JWT_SECRET=your_jwt_secret_here
 NODE_ENV=development
 ```
