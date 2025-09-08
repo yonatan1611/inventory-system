@@ -1,67 +1,66 @@
 // server/services/transactionService.js
-import { Transaction, Product, ProductVariant } from '../models/index.js'; // Import ProductVariant
+import { Transaction, ProductVariant } from '../models/index.js';
 import { APIError } from '../utils/helpers.js';
 
 export const transactionService = {
+  createTransaction: async (transactionData) => {
+    const { type, productId, variantId, quantity, discount, discountType, notes } = transactionData;
+
+    // Validate required fields
+    if (!type || !productId || !quantity) {
+      throw new APIError('Type, productId, and quantity are required', 400);
+    }
+
+    // Check if variant exists if provided
+    if (variantId) {
+      const variant = await ProductVariant.findById(variantId);
+      if (!variant) {
+        throw new APIError('Variant not found', 404);
+      }
+    }
+
+    // Create the transaction
+    const transaction = await Transaction.create({
+      type,
+      productId: parseInt(productId),
+      variantId: variantId ? parseInt(variantId) : null,
+      quantity: parseInt(quantity),
+      discount: discount ? parseFloat(discount) : 0,
+      discountType: discountType || 'fixed',
+      notes: notes || null,
+      date: new Date() // Ensure we set the current date
+    });
+
+    return transaction;
+  },
+
   getAllTransactions: async () => {
     return await Transaction.findAll();
   },
 
-  createTransaction: async (transactionData) => {
-  const { type, productId, variantId, quantity, discount, discountType } = transactionData;
-  
-  // Get the product
-  const product = await Product.findById(productId);
-  if (!product) {
-    throw new APIError('Product not found', 404);
-  }
-  
-  // Get the variant if variantId is provided
-  let variant = null;
-  if (variantId) {
-    variant = await ProductVariant.findById(variantId);
-    if (!variant) {
-      throw new APIError('Variant not found', 404);
-    }
-  }
-  
-  // Update quantity based on transaction type
-  if (variantId) {
-    // Handle variant transactions
-    let newQuantity = variant.quantity;
-    
-    if (type === 'PURCHASE' || type === 'REFILL') {
-      newQuantity += parseInt(quantity);
-    } else if (type === 'SALE') {
-      if (parseInt(quantity) > variant.quantity) {
-        throw new APIError('Insufficient stock', 400);
-      }
-      newQuantity -= parseInt(quantity);
-    } else if (type === 'ADJUSTMENT') {
-      newQuantity = parseInt(quantity);
-    } else {
-      throw new APIError('Invalid transaction type', 400);
-    }
-    
-    // Create the transaction
-    const transaction = await Transaction.create({
-      ...transactionData,
-      discount: discount !== undefined ? parseFloat(discount) : 0,
-      discountType: discountType || 'fixed'
-    });
-    
-    // Update the variant quantity
-    await ProductVariant.update(variantId, { quantity: newQuantity });
-    
-    return transaction;
-  } else {
-    // Handle product transactions (if you still need this)
-    // This would be for products without variants
-    throw new APIError('Variant ID is required', 400);
-  }
-},
-
   getTransactionsByDateRange: async (startDate, endDate) => {
     return await Transaction.findByDateRange(startDate, endDate);
+  },
+
+  getTransactionById: async (id) => {
+    const transaction = await Transaction.findById(id);
+    
+    if (!transaction) {
+      throw new APIError('Transaction not found', 404);
+    }
+    
+    return transaction;
+  },
+
+  deleteTransaction: async (id) => {
+    const transaction = await Transaction.findById(id);
+    
+    if (!transaction) {
+      throw new APIError('Transaction not found', 404);
+    }
+    
+    await Transaction.delete(id);
+    
+    return { message: 'Transaction deleted successfully' };
   }
 };

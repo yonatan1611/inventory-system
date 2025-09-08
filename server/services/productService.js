@@ -339,5 +339,51 @@ export const productService = {
     if (!variant) throw new APIError('Variant not found', 404);
     if (variant.quantity < requestedQuantity) throw new APIError('Insufficient stock', 400);
     return variant;
+  },
+
+    getProductVariantById: async (variantId) => {
+    const variant = await prisma.productVariant.findUnique({
+      where: { id: Number(variantId) },
+      include: {
+        product: true
+      }
+    });
+
+    if (!variant) {
+      throw new APIError('Variant not found', 404);
+    }
+
+    return variant;
+  },
+
+   getProductVariantById: async (variantId) => {
+    const variant = await prisma.productVariant.findUnique({
+      where: { id: Number(variantId) },
+      include: {
+        product: true
+      }
+    });
+
+    if (!variant) {
+      throw new APIError('Variant not found', 404);
+    }
+
+    return variant;
+  },
+
+  // Add this method for updating variant stock
+  updateVariantStock: async (variantId, newQuantity) => {
+    return await prisma.productVariant.update({
+      where: { id: Number(variantId) },
+      data: { quantity: newQuantity }
+    });
+  },
+
+  // Add this method for updating variant stock
+  updateVariantStock: async (variantId, newQuantity) => {
+    return await prisma.productVariant.update({
+      where: { id: Number(variantId) },
+      data: { quantity: newQuantity }
+    });
   }
 };

@@ -4,6 +4,7 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
   PieChart, Pie, Cell, AreaChart, Area 
 } from 'recharts';
+import { DollarSign } from 'lucide-react';
 import dashboardHero from '../assets/dashboard-hero.png';
 
 const Dashboard = () => {
@@ -43,6 +44,10 @@ const Dashboard = () => {
     });
   }, []);
 
+    const handleViewAllTransactions = () => {
+    window.location.href = '/transactions';
+  };
+
   const COLORS = ['#4f46e5', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'];
 
   if (loading) return (
@@ -55,11 +60,11 @@ const Dashboard = () => {
   );
 
   const handleAddProduct = () => {
-    window.location.href = '/products/new';
+    window.location.href = '/products';
   };
 
   const handleCreateTransaction = () => {
-    window.location.href = '/transactions/new';
+    window.location.href = '/sales';
   };
 
   const handleGenerateReport = () => {
@@ -357,7 +362,15 @@ const Dashboard = () => {
           <div className="lg:col-span-2 bg-white rounded-xl shadow-lg p-6">
             <div className="flex justify-between items-center mb-6">
               <h2 className="text-xl font-semibold text-gray-800">Recent Transactions</h2>
-              <button className="text-indigo-600 text-sm font-medium">View All</button>
+              <button 
+                className="text-indigo-600 text-sm font-medium hover:text-indigo-800 flex items-center"
+                onClick={handleViewAllTransactions}
+              >
+                View All
+                <svg className="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                </svg>
+              </button>
             </div>
             <div className="overflow-x-auto">
               <table className="min-w-full divide-y divide-gray-200">
@@ -366,7 +379,6 @@ const Dashboard = () => {
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Product</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
@@ -382,17 +394,9 @@ const Dashboard = () => {
                       {(() => {
                         const selling = Number(tx.product?.sellingPrice ?? tx.product?.variants?.[0]?.sellingPrice ?? 0);
                         const qty = Number(tx.quantity ?? 0);
-                        return `$${(selling * qty).toFixed(2)}`;
+                        return `${(selling * qty).toFixed(2)} Birr`;
                       })()}
                     </td>
-
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                          tx.status === 'Completed' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'
-                        }`}>
-                          {tx.status || 'Pending'}
-                        </span>
-                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -427,11 +431,9 @@ const Dashboard = () => {
               >
                 <div className="flex items-center">
                   <div className="rounded-xl bg-green-100 p-3 mr-4">
-                    <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                    </svg>
+                    <DollarSign className="w-5 h-5 text-green-600" />
                   </div>
-                  <span>Create Transaction</span>
+                  <span>Create Sale</span>
                 </div>
                 <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
@@ -449,23 +451,6 @@ const Dashboard = () => {
                     </svg>
                   </div>
                   <span>Generate Report</span>
-                </div>
-                <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                </svg>
-              </button>
-              
-              <button
-                className="w-full flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
-                onClick={handleViewNotifications}
-              >
-                <div className="flex items-center">
-                  <div className="rounded-xl bg-orange-100 p-3 mr-4">
-                    <svg className="w-5 h-5 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
-                    </svg>
-                  </div>
-                  <span>View Notifications</span>
                 </div>
                 <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />

@@ -31,7 +31,6 @@ const getSellingAndCost = (product, transaction = {}) => {
 export const reportService = {
   generateProfitLossReport: async (startDate, endDate) => {
     const transactions = await Transaction.findByDateRange(startDate, endDate);
-    // FIX: Changed from salesData to salesData (correct variable name)
     const salesData = transactions.filter(t => t.type === 'SALE');
 
     let totalRevenue = 0;
