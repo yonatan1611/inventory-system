@@ -33,3 +33,17 @@ export const getInventoryCategories = catchAsync(async (req, res) => {
   const data = await reportService.generateInventoryCategories();
   successResponse(res, 200, data);
 });
+
+export const getPreviousProfitLoss = catchAsync(async (req, res) => {
+  // Calculate start and end dates for previous period
+  const endDate = new Date();
+  endDate.setMonth(endDate.getMonth() - 1);
+  const startDate = new Date(endDate);
+  startDate.setMonth(startDate.getMonth() - 1);
+  
+  const report = await reportService.generateProfitLossReport(
+    startDate.toISOString().split('T')[0],
+    endDate.toISOString().split('T')[0]
+  );
+  successResponse(res, 200, report);
+});

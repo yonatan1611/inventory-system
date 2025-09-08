@@ -118,64 +118,240 @@ const Reports = () => {
   const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8', '#82CA9D'];
 
   // Export functions
-  const handleExportPDF = () => {
-    const doc = new jsPDF();
-    
-    // Add title with date range info
-    let title = 'Analytics Reports';
-    let dateInfo = 'All Time';
-    
-    if (period !== 'total') {
-      const { startDate, endDate } = customDateActive ? dateRange : getDateRange(period);
-      title += ` (${startDate} to ${endDate})`;
-      dateInfo = `${startDate} to ${endDate}`;
-    }
-    
-    doc.text(title, 14, 16);
-    
-    // Add summary section
-    autoTable(doc, {
-      head: [['Summary', '']],
-      body: [
-        ['Period', dateInfo],
-        ['Total Revenue', `Birr ${summaryData.totalRevenue.toFixed(2)}`],
-        ['Total Profit', `Birr ${summaryData.totalProfit.toFixed(2)}`],
-        ['Total Items Sold', summaryData.totalItems]
-      ],
-      startY: 25,
-      theme: 'grid',
-      headStyles: { fillColor: [66, 139, 202] }
-    });
-    
-    // Sales by product table
-    autoTable(doc, {
-      head: [['Product', 'Quantity Sold', 'Revenue', 'Profit']],
-      body: salesByProduct.map(p => [
-        p.name,
-        p.quantity,
-        `Birr ${safeNum(p.revenue).toFixed(2)}`,
-        `Birr ${safeNum(p.profit).toFixed(2)}`
-      ]),
-      startY: doc.lastAutoTable.finalY + 20
-    });
-    
-    // Add a page for inventory data if needed
-    if (inventoryByCategory.length > 0) {
-      doc.addPage();
-      doc.text('Inventory by Category', 14, 16);
-      autoTable(doc, {
-        head: [['Category', 'Items', 'Total Value']],
-        body: inventoryByCategory.map(c => [
-          c.name,
-          c.items ?? '-',
-          `Birr ${safeNum(c.value).toFixed(2)}`
-        ]),
-        startY: 25
-      });
-    }
-    
-    doc.save('report.pdf');
-  };
+const handleExportPDF = () => {
+  const doc = new jsPDF();
+  
+  // Add modern color scheme
+  const primaryColor = [66, 139, 202]; // Blue
+  const secondaryColor = [92, 184, 92]; // Green
+  const accentColor = [240, 173, 78]; // Orange
+  const darkColor = [51, 51, 51]; // Dark gray
+  const lightColor = [245, 245, 245]; // Light gray
+  
+  // Format date for header
+  const now = new Date();
+  const formattedDate = now.toLocaleDateString('en-US', { 
+    year: 'numeric', 
+    month: 'long', 
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  });
+  
+  // Format period information
+  let periodInfo = 'All Time';
+  if (period !== 'total') {
+    const { startDate, endDate } = customDateActive ? dateRange : getDateRange(period);
+    periodInfo = `${startDate} to ${endDate}`;
+  }
+  
+  // Calculate additional metrics
+  const totalInventoryValue = inventoryByCategory.reduce((sum, cat) => sum + (cat.value || 0), 0);
+  const profitMargin = summaryData.totalRevenue > 0 
+    ? (summaryData.totalProfit / summaryData.totalRevenue * 100) 
+    : 0;
+  
+  // Find largest category by items
+  const sortedByItems = [...inventoryByCategory].sort((a, b) => (b.items || 0) - (a.items || 0));
+  const largestCategoryByItems = sortedByItems[0]?.name || 'N/A';
+  
+  // Page settings
+  const pageWidth = doc.internal.pageSize.width;
+  const margin = 20;
+  const contentWidth = pageWidth - (margin * 2);
+  
+  let yPosition = 20;
+  
+  // Add header with logo and title
+  doc.setFillColor(primaryColor[0], primaryColor[1], primaryColor[2]);
+  doc.rect(0, 0, pageWidth, 60, 'F');
+  
+  doc.setFontSize(22);
+  doc.setTextColor(255, 255, 255);
+  doc.setFont(undefined, 'bold');
+  doc.text('FEREHIWOT INVENTORY REPORT', pageWidth / 2, 25, { align: 'center' });
+  
+  doc.setFontSize(12);
+  doc.setTextColor(255, 255, 255, 0.8);
+  doc.setFont(undefined, 'normal');
+  doc.text(`Generated: ${formattedDate}`, pageWidth / 2, 35, { align: 'center' });
+  doc.text(`Period: ${periodInfo}`, pageWidth / 2, 42, { align: 'center' });
+  
+  yPosition = 70;
+  
+  // Add summary section
+  doc.setFillColor(lightColor[0], lightColor[1], lightColor[2]);
+  doc.roundedRect(margin, yPosition, contentWidth, 50, 3, 3, 'F');
+  
+  doc.setFontSize(16);
+  doc.setTextColor(darkColor[0], darkColor[1], darkColor[2]);
+  doc.setFont(undefined, 'bold');
+  doc.text('EXECUTIVE SUMMARY', margin + 10, yPosition + 15);
+  
+  doc.setFontSize(10);
+  doc.setTextColor(darkColor[0], darkColor[1], darkColor[2]);
+  
+  // Summary metrics in two columns
+  const summaryLeft = [
+    `Total Revenue: Birr ${summaryData.totalRevenue.toFixed(2)}`,
+    `Total Profit: Birr ${summaryData.totalProfit.toFixed(2)}`,
+    `Profit Margin: ${profitMargin.toFixed(2)}%`
+  ];
+  
+  const summaryRight = [
+    `Total Items Sold: ${summaryData.totalItems}`,
+    `Inventory Value: Birr ${totalInventoryValue.toFixed(2)}`,
+    `Largest Category: ${largestCategoryByItems}`
+  ];
+  
+  summaryLeft.forEach((text, i) => {
+    doc.text(text, margin + 15, yPosition + 25 + (i * 7));
+  });
+  
+  summaryRight.forEach((text, i) => {
+    doc.text(text, margin + contentWidth / 2, yPosition + 25 + (i * 7));
+  });
+  
+  yPosition += 60;
+  
+  // Sales by Product table
+  doc.setFontSize(14);
+  doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
+  doc.setFont(undefined, 'bold');
+  doc.text('SALES BY PRODUCT', margin, yPosition);
+  yPosition += 10;
+  
+  const salesTableData = salesByProduct.map(p => [
+    p.name,
+    p.quantity.toString(),
+    `Birr ${safeNum(p.revenue).toFixed(2)}`,
+    `Birr ${safeNum(p.profit).toFixed(2)}`,
+    `${p.revenue > 0 ? (p.profit / p.revenue * 100).toFixed(2) : 0}%`
+  ]);
+  
+  autoTable(doc, {
+    startY: yPosition,
+    head: [['Product', 'Quantity', 'Revenue', 'Profit', 'Margin']],
+    body: salesTableData,
+    theme: 'grid',
+    headStyles: {
+      fillColor: [primaryColor[0], primaryColor[1], primaryColor[2]],
+      textColor: 255,
+      fontStyle: 'bold'
+    },
+    alternateRowStyles: {
+      fillColor: [lightColor[0], lightColor[1], lightColor[2]]
+    },
+    styles: {
+      fontSize: 9,
+      cellPadding: 3,
+      overflow: 'linebreak'
+    },
+    margin: { left: margin, right: margin }
+  });
+  
+  yPosition = doc.lastAutoTable.finalY + 15;
+  
+  // Check if we need a new page
+  if (yPosition > doc.internal.pageSize.height - 100) {
+    doc.addPage();
+    yPosition = 20;
+  }
+  
+  // Inventory by Category table
+  doc.setFontSize(14);
+  doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
+  doc.setFont(undefined, 'bold');
+  doc.text('INVENTORY BY CATEGORY', margin, yPosition);
+  yPosition += 10;
+  
+  const inventoryTableData = sortedByItems.map(c => [
+    c.name,
+    (c.items || 0).toString(),
+    `Birr ${safeNum(c.value).toFixed(2)}`,
+    `Birr ${c.items > 0 ? (c.value / c.items).toFixed(2) : '0.00'}`,
+    `${totalInventoryValue > 0 ? ((c.value / totalInventoryValue) * 100).toFixed(2) : 0}%`
+  ]);
+  
+  autoTable(doc, {
+    startY: yPosition,
+    head: [['Category', 'Items', 'Total Value', 'Avg. Value', '% of Total']],
+    body: inventoryTableData,
+    theme: 'grid',
+    headStyles: {
+      fillColor: [secondaryColor[0], secondaryColor[1], secondaryColor[2]],
+      textColor: 255,
+      fontStyle: 'bold'
+    },
+    alternateRowStyles: {
+      fillColor: [lightColor[0], lightColor[1], lightColor[2]]
+    },
+    styles: {
+      fontSize: 9,
+      cellPadding: 3,
+      overflow: 'linebreak'
+    },
+    margin: { left: margin, right: margin }
+  });
+  
+  yPosition = doc.lastAutoTable.finalY + 15;
+  
+  // Check if we need a new page
+  if (yPosition > doc.internal.pageSize.height - 100) {
+    doc.addPage();
+    yPosition = 20;
+  }
+  
+  // Monthly Trends table
+  doc.setFontSize(14);
+  doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
+  doc.setFont(undefined, 'bold');
+  doc.text('MONTHLY TRENDS', margin, yPosition);
+  yPosition += 10;
+  
+  const monthlyTableData = salesByMonth.map(m => [
+    m.name,
+    `Birr ${safeNum(m.sales).toFixed(2)}`,
+    `Birr ${safeNum(m.profit).toFixed(2)}`,
+    `${m.sales > 0 ? (m.profit / m.sales * 100).toFixed(2) : 0}%`
+  ]);
+  
+  autoTable(doc, {
+    startY: yPosition,
+    head: [['Month', 'Sales', 'Profit', 'Margin']],
+    body: monthlyTableData,
+    theme: 'grid',
+    headStyles: {
+      fillColor: [accentColor[0], accentColor[1], accentColor[2]],
+      textColor: 255,
+      fontStyle: 'bold'
+    },
+    alternateRowStyles: {
+      fillColor: [lightColor[0], lightColor[1], lightColor[2]]
+    },
+    styles: {
+      fontSize: 9,
+      cellPadding: 3,
+      overflow: 'linebreak'
+    },
+    margin: { left: margin, right: margin }
+  });
+  
+  // Add footer with page numbers
+  const pageCount = doc.internal.getNumberOfPages();
+  for (let i = 1; i <= pageCount; i++) {
+    doc.setPage(i);
+    doc.setFontSize(8);
+    doc.setTextColor(150, 150, 150);
+    doc.text(`Page ${i} of ${pageCount}`, pageWidth / 2, doc.internal.pageSize.height - 10, { align: 'center' });
+    doc.text('Generated by Ferehiwot Zeleke Store Management System', pageWidth / 2, doc.internal.pageSize.height - 5, { align: 'center' });
+  }
+  
+  // Save the file with a timestamped name
+  const dateStr = now.toISOString().split('T')[0];
+  const timeStr = now.toTimeString().split(' ')[0].replace(/:/g, '-');
+  doc.save(`FERE_Report_${dateStr}_${timeStr}.pdf`);
+};
 
 const handleExportExcel = () => {
   const wb = XLSX.utils.book_new();
@@ -198,9 +374,17 @@ const handleExportExcel = () => {
     ? (summaryData.totalProfit / summaryData.totalRevenue * 100) 
     : 0;
   
+  // Find largest category by items
+  const sortedByItems = [...inventoryByCategory].sort((a, b) => (b.items || 0) - (a.items || 0));
+  const largestCategoryByItems = sortedByItems[0]?.name || 'N/A';
+  
+  // Find largest category by value
+  const sortedByValue = [...inventoryByCategory].sort((a, b) => (b.value || 0) - (a.value || 0));
+  const largestCategoryByValue = sortedByValue[0]?.name || 'N/A';
+  
   // 1. Executive Summary Sheet
   const summarySheetData = [
-    ['BUSINESS INTELLIGENCE REPORT'],
+    ['FEREHIWOT INVENTORY REPORT'],
     ['Generated on', new Date().toLocaleString()],
     ['Report Period', periodInfo],
     [],
@@ -219,7 +403,8 @@ const handleExportExcel = () => {
     [],
     ['INVENTORY SUMMARY'],
     ['Total Categories', inventoryByCategory.length],
-    ['Largest Category', inventoryByCategory[0]?.name || 'N/A'],
+    ['Largest Category (by items)', largestCategoryByItems],
+    ['Largest Category (by value)', largestCategoryByValue],
     ['Total Inventory Value', `Birr ${totalInventoryValue.toFixed(2)}`],
     ['Average Value per Category', `Birr ${inventoryByCategory.length > 0 ? (totalInventoryValue / inventoryByCategory.length).toFixed(2) : '0.00'}`]
   ];
@@ -252,8 +437,8 @@ const handleExportExcel = () => {
   const monthlyWs = XLSX.utils.json_to_sheet(monthlyData);
   XLSX.utils.book_append_sheet(wb, monthlyWs, 'Monthly Trends');
   
-  // 4. Inventory by Category Sheet
-  const inventoryData = inventoryByCategory.map(c => ({
+  // 4. Inventory by Category Sheet (sorted by items)
+  const inventoryData = sortedByItems.map(c => ({
     'Category': c.name,
     'Number of Items': c.items || 0,
     'Total Value (Birr)': safeNum(c.value),
@@ -277,39 +462,23 @@ const handleExportExcel = () => {
     ['Top 5 Products by Quantity'],
     ...salesByProduct.slice(0, 5).map(p => [p.name, p.quantity]),
     [],
+    ['Inventory Distribution by Items'],
+    ...sortedByItems.map(c => [
+      c.name, 
+      c.items || 0,
+      `${((c.items / sortedByItems.reduce((sum, cat) => sum + (cat.items || 0), 0)) * 100).toFixed(1)}%`
+    ]),
+    [],
     ['Inventory Distribution by Value'],
-    ...inventoryByCategory.map(c => [
+    ...sortedByValue.map(c => [
       c.name, 
       `Birr ${c.value.toFixed(2)}`,
       `${((c.value / totalInventoryValue) * 100).toFixed(1)}%`
-    ]),
-    [],
-    ['Inventory Distribution by Items'],
-    ...inventoryByCategory.map(c => [
-      c.name, 
-      c.items || 0,
-      `${((c.items / inventoryByCategory.reduce((sum, cat) => sum + (cat.items || 0), 0)) * 100).toFixed(1)}%`
     ])
   ];
   
   const performanceWs = XLSX.utils.aoa_to_sheet(performanceData);
   XLSX.utils.book_append_sheet(wb, performanceWs, 'Performance Analysis');
-  
-  // 6. Raw Data Sheet (for further analysis)
-  const rawData = [
-    ['RAW DATA'],
-    [],
-    ['Sales Transactions'],
-    ['Date', 'Product', 'Variant', 'Quantity', 'Revenue', 'Profit'],
-    // You could add actual transaction data here if available
-    [],
-    ['Inventory Details'],
-    ['Category', 'Product', 'Variant', 'Quantity', 'Cost', 'Value'],
-    // You could add actual inventory details here if available
-  ];
-  
-  const rawWs = XLSX.utils.aoa_to_sheet(rawData);
-  XLSX.utils.book_append_sheet(wb, rawWs, 'Raw Data');
   
   // Set column widths for better readability
   const setColumnWidths = (ws, widths) => {
@@ -321,10 +490,9 @@ const handleExportExcel = () => {
   setColumnWidths(monthlyWs, [{wch: 15}, {wch: 15}, {wch: 15}, {wch: 15}, {wch: 15}]);
   setColumnWidths(inventoryWs, [{wch: 20}, {wch: 15}, {wch: 15}, {wch: 20}, {wch: 15}]);
   setColumnWidths(performanceWs, [{wch: 30}, {wch: 20}, {wch: 10}]);
-  setColumnWidths(rawWs, [{wch: 15}, {wch: 20}, {wch: 15}, {wch: 10}, {wch: 10}, {wch: 10}]);
   
   // Save the file with a timestamped name
-  XLSX.writeFile(wb, `Business_Intelligence_Report_${dateStr}_${timeStr}.xlsx`);
+  XLSX.writeFile(wb, `Fere_Inventory_Report_${dateStr}_${timeStr}.xlsx`);
 };
   const handlePrint = () => {
     window.print();
