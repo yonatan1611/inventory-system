@@ -13,20 +13,22 @@ const generateSKU = (prefix = 'PROD', length = 8) => {
 };
 
 // Helper function to ensure SKU is unique
-const ensureUniqueSKU = async (sku, isVariant = false) => {
+// Helper function to ensure SKU is unique (with transaction support)
+const ensureUniqueSKU = async (sku, isVariant = false, tx = prisma) => {
   let exists = false;
+  const client = tx || prisma;
   
   if (isVariant) {
-    exists = await prisma.productVariant.findUnique({
+    exists = await client.productVariant.findUnique({
       where: { sku }
     });
   } else {
-    exists = await prisma.product.findUnique({
+    exists = await client.product.findUnique({
       where: { baseSku: sku }
     });
   }
   
-  return exists ? ensureUniqueSKU(generateSKU(), isVariant) : sku;
+  return exists ? ensureUniqueSKU(generateSKU(), isVariant, tx) : sku;
 };
 
 export const productService = {
@@ -62,17 +64,19 @@ export const productService = {
   },
 
   createProduct: async (productData) => {
-    const { name, description, category, variants } = productData;
-    
+  const { name, description, category, variants } = productData;
+  
+  return await prisma.$transaction(async (tx) => {
     // Generate unique base SKU
-    const baseSku = await ensureUniqueSKU(generateSKU());
+    const baseSku = await ensureUniqueSKU(generateSKU(), false, tx);
     
     // Generate variant SKUs
     const variantsWithSKUs = await Promise.all(
       variants.map(async (variant) => {
         const variantSku = await ensureUniqueSKU(
           generateSKU(`${baseSku}-V`), 
-          true
+          true,
+          tx
         );
         
         return {
@@ -85,7 +89,7 @@ export const productService = {
       })
     );
 
-    return await prisma.product.create({
+    return await tx.product.create({
       data: {
         name,
         description,
@@ -99,32 +103,90 @@ export const productService = {
         variants: true
       }
     });
-  },
+  });
+},
 
   updateProduct: async (id, productData) => {
-    const { name, description, category } = productData;
-    
-    // Check if product exists
-    const existingProduct = await prisma.product.findUnique({
-      where: { id: parseInt(id) }
-    });
+  const { name, description, category, variants = [] } = productData;
+  
+  // Check if product exists
+  const existingProduct = await prisma.product.findUnique({
+    where: { id: parseInt(id) },
+    include: { variants: true }
+  });
 
-    if (!existingProduct) {
-      throw new APIError('Product not found', 404);
-    }
+  if (!existingProduct) {
+    throw new APIError('Product not found', 404);
+  }
 
-    return await prisma.product.update({
+  return await prisma.$transaction(async (tx) => {
+    // Update the product
+    const updatedProduct = await tx.product.update({
       where: { id: parseInt(id) },
       data: {
         name,
         description,
         category
-      },
+      }
+    });
+
+    // Process variants
+    const existingVariantIds = existingProduct.variants.map(v => v.id);
+    const updatedVariantIds = [];
+    
+    for (const variantData of variants) {
+      if (variantData.id) {
+        // Update existing variant
+        await tx.productVariant.update({
+          where: { id: parseInt(variantData.id) },
+          data: {
+            color: variantData.color,
+            size: variantData.size,
+            costPrice: parseFloat(variantData.costPrice),
+            sellingPrice: parseFloat(variantData.sellingPrice),
+            quantity: parseInt(variantData.quantity)
+          }
+        });
+        updatedVariantIds.push(parseInt(variantData.id));
+      } else {
+        // Create new variant
+        const sku = await ensureUniqueSKU(
+          generateSKU(`${updatedProduct.baseSku}-V`), 
+          true,
+          tx // Pass transaction instance
+        );
+        
+        await tx.productVariant.create({
+          data: {
+            productId: parseInt(id),
+            sku,
+            color: variantData.color,
+            size: variantData.size,
+            costPrice: parseFloat(variantData.costPrice),
+            sellingPrice: parseFloat(variantData.sellingPrice),
+            quantity: parseInt(variantData.quantity)
+          }
+        });
+      }
+    }
+    
+    // Delete variants that were removed
+    const variantsToDelete = existingVariantIds.filter(id => !updatedVariantIds.includes(id));
+    for (const variantId of variantsToDelete) {
+      await tx.productVariant.delete({
+        where: { id: variantId }
+      });
+    }
+
+    // Return the updated product with variants
+    return await tx.product.findUnique({
+      where: { id: parseInt(id) },
       include: {
         variants: true
       }
     });
-  },
+  });
+},
 
   addProductVariant: async (productId, variantData) => {
     // Get the product to use its base SKU

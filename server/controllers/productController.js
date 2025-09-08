@@ -40,23 +40,24 @@ export const createProduct = catchAsync(async (req, res) => {
 
 
 // Update product
+// Update product with variants
 export const updateProduct = catchAsync(async (req, res) => {
   const { id } = req.params;
-  const { name, description, category, baseSku } = req.body;
+  const { name, description, category, variants } = req.body;
   
   const product = await productService.updateProduct(id, {
     name,
     description,
     category,
-    baseSku
+    variants: variants || []
   });
 
- await activityService.createActivity(
-  'CREATE_PRODUCT',
-  `Created product: ${product.name} with ${product.variants.length} variants. Base SKU: ${product.baseSku}`,
-  req.user.userId,
-  product.id
-);
+  await activityService.createActivity(
+    'UPDATE_PRODUCT', // Changed from CREATE_PRODUCT to UPDATE_PRODUCT
+    `Updated product: ${product.name} with ${product.variants.length} variants. Base SKU: ${product.baseSku}`,
+    req.user.userId,
+    product.id
+  );
   
   successResponse(res, 200, product, 'Product updated successfully');
 });
