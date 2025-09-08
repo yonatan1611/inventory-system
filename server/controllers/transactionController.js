@@ -10,26 +10,36 @@ export const getTransactions = catchAsync(async (req, res) => {
 });
 
 // Create transaction
+// Updated createTransaction in transactionController.js
+// Updated createTransaction in transactionController.js
+// In transactionController.js
 export const createTransaction = catchAsync(async (req, res) => {
-  const { type, productId, quantity, notes } = req.body;
+  const { type, productId, variantId, quantity, notes, discount, discountType } = req.body;
 
   if (!productId || isNaN(productId)) {
     return res.status(400).json({ message: 'Valid productId is required' });
   }
 
+  if (!variantId || isNaN(variantId)) {
+    return res.status(400).json({ message: 'Valid variantId is required' });
+  }
+
   const transaction = await transactionService.createTransaction({
     type,
     productId: Number(productId),
+    variantId: Number(variantId), // Add variantId
     quantity: Number(quantity),
     notes,
+    discount: discount || 0,
+    discountType: discountType || 'fixed'
   });
 
   successResponse(res, 201, transaction, 'Transaction recorded successfully');
 });
 
-// controllers/transactionController.js
+// Updated sellProduct in transactionController.js
 export const sellProduct = catchAsync(async (req, res) => {
-  const { variantId, quantity } = req.body;
+  const { variantId, quantity, discount, discountType } = req.body;
 
   if (!variantId || isNaN(variantId)) {
     return res.status(400).json({ message: 'Valid variantId is required' });
@@ -51,8 +61,19 @@ export const sellProduct = catchAsync(async (req, res) => {
     return res.status(400).json({ message: 'Insufficient stock' });
   }
 
+  // Apply discount to calculate final price
+  let finalPrice = variant.sellingPrice;
+  if (discount) {
+    if (discountType === 'percentage') {
+      finalPrice = finalPrice * (1 - discount / 100);
+    } else {
+      finalPrice = finalPrice - discount;
+    }
+    finalPrice = Math.max(0, finalPrice); // Ensure non-negative price
+  }
+
   // Calculate profit
-  const profit = (variant.sellingPrice - variant.costPrice) * Number(quantity);
+  const profit = (finalPrice - variant.costPrice) * Number(quantity);
 
   // Record transaction
   const transaction = await prisma.transaction.create({
@@ -60,7 +81,9 @@ export const sellProduct = catchAsync(async (req, res) => {
       type: 'SALE',
       productId: variant.productId,
       quantity: Number(quantity),
-      notes: `Sold variant: ${variant.sku}. Profit: $${profit.toFixed(2)}`
+      discount: discount || 0,
+      discountType: discountType || 'fixed',
+      notes: `Profit: ${profit.toFixed(2)} Birr`
     }
   });
 
@@ -73,7 +96,7 @@ export const sellProduct = catchAsync(async (req, res) => {
   // Log activity
   await activityService.createActivity(
     'SELL_PRODUCT',
-    `Sold ${quantity} units of variant: ${variant.sku}. Profit: $${profit.toFixed(2)}`,
+    `Profit: ${profit.toFixed(2)} Birr`,
     req.user.userId,
     variant.productId
   );

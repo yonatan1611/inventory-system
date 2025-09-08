@@ -3,9 +3,10 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Search, DollarSign, X, Plus, Minus, Trash2, Package, ChevronDown, ChevronRight } from 'lucide-react';
 import { useProducts } from '../hooks/useProducts';
+import api from '../services/api';
 
 export default function Sales() {
-  const { products, loading, error, sellProduct, updateProduct, refetch } = useProducts();
+  const { products, loading, error, sellProduct, updateVariant, refetch } = useProducts();
   const [query, setQuery] = useState('');
   const [saleItems, setSaleItems] = useState([]);
   const [toast, setToast] = useState(null);
@@ -33,37 +34,35 @@ export default function Sales() {
     setExpandedProducts(newExpanded);
   };
 
-const addVariantToSale = (variant, product) => {
-  // Check if variant is already in the sale
-  const existingItem = saleItems.find(item => item.variantId === variant.id);
-  
-  if (existingItem) {
-    // Increase quantity if already in sale
-    setSaleItems(prev => 
-      prev.map(item => 
-        item.variantId === variant.id 
-          ? { ...item, saleQuantity: item.saleQuantity + 1 } 
-          : item
-      )
-    );
-  } else {
-    // Add new variant to sale with default values
-    setSaleItems(prev => [
-      ...prev, 
-      { 
-        ...variant,
-        productId: product.id,
-        productName: product.name,
-        variantId: variant.id,
-        saleQuantity: 1, 
-        saleDiscount: 0,
-        salePrice: variant.sellingPrice
-      }
-    ]);
-  }
-  
-  showToast('success', `${product.name} - ${variant.sku} added to sale`);
-};
+  const addVariantToSale = (variant, product) => {
+    const existingItem = saleItems.find(item => item.variantId === variant.id);
+    
+    if (existingItem) {
+      setSaleItems(prev => 
+        prev.map(item => 
+          item.variantId === variant.id 
+            ? { ...item, saleQuantity: item.saleQuantity + 1 } 
+            : item
+        )
+      );
+    } else {
+      setSaleItems(prev => [
+        ...prev, 
+        { 
+          ...variant,
+          productId: product.id,
+          productName: product.name,
+          variantId: variant.id,
+          saleQuantity: 1, 
+          saleDiscount: 0,
+          saleDiscountType: 'fixed',
+          salePrice: variant.sellingPrice
+        }
+      ]);
+    }
+    
+    showToast('success', `${product.name} - ${variant.sku} added to sale`);
+  };
 
   const updateSaleItem = (variantId, field, value) => {
     setSaleItems(prev =>
@@ -82,7 +81,14 @@ const addVariantToSale = (variant, product) => {
     const discount = Number(item.saleDiscount) || 0;
     const price = Number(item.salePrice) || 0;
     
-    const discountedPrice = price - discount;
+    // Apply discount based on type
+    let discountedPrice = price;
+    if (item.saleDiscountType === 'percentage') {
+      discountedPrice = price * (1 - discount / 100);
+    } else {
+      discountedPrice = price - discount;
+    }
+    
     return discountedPrice * quantity;
   };
 
@@ -91,52 +97,55 @@ const addVariantToSale = (variant, product) => {
   };
 
   const processSale = async () => {
-  if (saleItems.length === 0) {
-    showToast('error', 'Please add variants to the sale');
-    return;
-  }
+    if (saleItems.length === 0) {
+      showToast('error', 'Please add variants to the sale');
+      return;
+    }
 
-  try {
-    // Process each sale item using variantId
-    const results = await Promise.all(
-      saleItems.map(async (item) => {
-        return await sellProduct(
-          item.variantId, // Use variantId instead of productId
-          Number(item.saleQuantity), 
-          { discount: Number(item.saleDiscount) }
-        );
-      })
-    );
+    try {
+      const results = await Promise.all(
+        saleItems.map(async (item) => {
+          return await sellProduct(
+            item.variantId,
+            Number(item.saleQuantity), 
+            { 
+              discount: Number(item.saleDiscount),
+              discountType: item.saleDiscountType
+            }
+          );
+        })
+      );
 
-    // Calculate total profit
-    const totalProfit = results.reduce((sum, result) => {
-      return sum + (result?.profit || 0);
-    }, 0);
+      const totalProfit = results.reduce((sum, result) => {
+        return sum + (result?.profit || 0);
+      }, 0);
 
-    showToast('success', `Sale completed! Total profit: $${totalProfit.toFixed(2)}`);
-    
-    // Reset sale items and refetch products
-    setSaleItems([]);
-    refetch?.();
-  } catch (err) {
-    console.error(err);
-    showToast('error', err?.response?.data?.message || 'Failed to process sale');
-  }
-};
+      showToast('success', `Sale completed! Total profit: $${totalProfit.toFixed(2)}`);
+      setSaleItems([]);
+      refetch?.();
+    } catch (err) {
+      console.error(err);
+      showToast('error', err.message || 'Failed to process sale');
+    }
+  };
 
-  const handleRefill = async () => {
+  // In your Sales component, modify the handleRefill function:
+// Alternative handleRefill function using transactions
+// In your Sales component, update the handleRefill function:
+const handleRefill = async () => {
   if (!refillModal.variant || !refillModal.quantity) {
     showToast('error', 'Please enter a valid quantity');
     return;
   }
 
   try {
-    const newQuantity = Number(refillModal.variant.quantity) + Number(refillModal.quantity);
-    
-    // Update the variant quantity, not the product quantity
-    await updateVariant(refillModal.variant.id, {
-      ...refillModal.variant,
-      quantity: newQuantity
+    // Create a REFILL transaction with variantId
+    await api.post('/transactions', {
+      type: 'REFILL',
+      productId: refillModal.product.id,
+      variantId: refillModal.variant.id, // Add this line
+      quantity: Number(refillModal.quantity),
+      notes: `Refilled ${refillModal.variant.sku}`
     });
     
     showToast('success', `Added ${refillModal.quantity} units to ${refillModal.product.name} - ${refillModal.variant.sku}`);
@@ -144,22 +153,23 @@ const addVariantToSale = (variant, product) => {
     refetch?.();
   } catch (err) {
     console.error(err);
-    showToast('error', err?.response?.data?.message || 'Failed to refill stock');
+    showToast('error', err.response?.data?.message || 'Failed to refill stock');
   }
 };
-const filteredProducts = products?.filter(p => {
-  const searchTerm = query.trim().toLowerCase();
-  return (
-    String(p.name || '').toLowerCase().includes(searchTerm) ||
-    String(p.baseSku || '').toLowerCase().includes(searchTerm) ||
-    String(p.category || '').toLowerCase().includes(searchTerm) ||
-    (p.variants || []).some(v => 
-      String(v.sku || '').toLowerCase().includes(searchTerm) ||
-      String(v.color || '').toLowerCase().includes(searchTerm) ||
-      String(v.size || '').toLowerCase().includes(searchTerm)
-    )
-  );
-}) || [];
+
+  const filteredProducts = products?.filter(p => {
+    const searchTerm = query.trim().toLowerCase();
+    return (
+      String(p.name || '').toLowerCase().includes(searchTerm) ||
+      String(p.baseSku || '').toLowerCase().includes(searchTerm) ||
+      String(p.category || '').toLowerCase().includes(searchTerm) ||
+      (p.variants || []).some(v => 
+        String(v.sku || '').toLowerCase().includes(searchTerm) ||
+        String(v.color || '').toLowerCase().includes(searchTerm) ||
+        String(v.size || '').toLowerCase().includes(searchTerm)
+      )
+    );
+  }) || [];
 
   return (
     <div className="container mx-auto px-4 py-6">
@@ -212,7 +222,6 @@ const filteredProducts = products?.filter(p => {
                       {product.variants?.map(variant => (
                         <div key={variant.id} className="px-3 py-2 border-b border-slate-200 last:border-b-0 flex justify-between items-center">
                           <div>
-                            {/* Add this line for variant SKU */}
                             <div className="font-medium text-indigo-700">
                               {variant.color && `Color: ${variant.color}`}
                               {variant.color && variant.size && ' • '}
@@ -294,7 +303,6 @@ const filteredProducts = products?.filter(p => {
                     <div key={item.variantId} className="p-3 border-b border-slate-100">
                       <div className="flex justify-between items-start mb-2">
                         <div className="flex-1">
-                          {/* Add this line for variant SKU */}
                           <div className="font-medium">{item.productName} - {item.sku}</div>
                           <div className="text-sm text-slate-500">
                             {item.color && `Color: ${item.color}`}
@@ -310,7 +318,7 @@ const filteredProducts = products?.filter(p => {
                         </button>
                       </div>
                       
-                      <div className="grid grid-cols-3 gap-2">
+                      <div className="grid grid-cols-4 gap-2">
                         <div>
                           <label className="block text-xs text-slate-500 mb-1">Qty</label>
                           <div className="flex">
@@ -331,7 +339,6 @@ const filteredProducts = products?.filter(p => {
                               value={item.saleQuantity}
                               onChange={(e) => {
                                 const value = e.target.value;
-                                // Allow empty string temporarily
                                 if (value === '' || /^\d*$/.test(value)) {
                                   updateSaleItem(item.variantId, 'saleQuantity', value);
                                 }
@@ -366,7 +373,6 @@ const filteredProducts = products?.filter(p => {
                             value={item.salePrice}
                             onChange={(e) => {
                               const value = e.target.value;
-                              // Allow decimal numbers
                               if (value === '' || /^\d*\.?\d*$/.test(value)) {
                                 updateSaleItem(item.variantId, 'salePrice', value);
                               }
@@ -381,15 +387,26 @@ const filteredProducts = products?.filter(p => {
                         </div>
                         
                         <div>
-                          <label className="block text-xs text-slate-500 mb-1">Discount </label>
+                          <label className="block text-xs text-slate-500 mb-1">Discount Type</label>
+                          <select
+                            value={item.saleDiscountType}
+                            onChange={(e) => updateSaleItem(item.variantId, 'saleDiscountType', e.target.value)}
+                            className="w-full px-2 py-1 border rounded"
+                          >
+                            <option value="fixed">Fixed</option>
+                            <option value="percentage">Percentage</option>
+                          </select>
+                        </div>
+                        
+                        <div>
+                          <label className="block text-xs text-slate-500 mb-1">Discount</label>
                           <input
                             type="number"
                             min="0"
-                            max="10000"
+                            max={item.saleDiscountType === 'percentage' ? 100 : 10000}
                             value={item.saleDiscount}
                             onChange={(e) => {
                               const value = e.target.value;
-                              // Allow empty string temporarily
                               if (value === '' || /^\d*$/.test(value)) {
                                 updateSaleItem(item.variantId, 'saleDiscount', value);
                               }
@@ -397,7 +414,7 @@ const filteredProducts = products?.filter(p => {
                             onBlur={(e) => {
                               let value = parseInt(e.target.value) || 0;
                               if (value < 0) value = 0;
-                              if (value > 10000) value = 10000;
+                              if (item.saleDiscountType === 'percentage' && value > 100) value = 100;
                               updateSaleItem(item.variantId, 'saleDiscount', value);
                             }}
                             className="w-full px-2 py-1 border rounded text-right"

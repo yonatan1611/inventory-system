@@ -80,21 +80,41 @@ export function useProducts() {
   };
 
   const sellProduct = async (variantId, quantity = 1, options = {}) => {
-  try {
-    // Call sell endpoint with variantId instead of productId
-    const response = await productsAPI.sell({ variantId, quantity, ...options });
-    await fetchProducts();
-    return response?.data?.data ?? response?.data ?? response;
-  } catch (err) {
-    const msg = err?.response?.data?.message || err.message || 'Sell failed';
-    setError(msg);
-    throw err;
-  }
-};
+    try {
+      // Call sell endpoint with variantId, quantity, and discount options
+      const response = await productsAPI.sell({ 
+        variantId, 
+        quantity, 
+        discount: options.discount || 0,
+        discountType: options.discountType || 'fixed'
+      });
+      await fetchProducts();
+      return response?.data?.data ?? response?.data ?? response;
+    } catch (err) {
+      const msg = err?.response?.data?.message || err.message || 'Sell failed';
+      setError(msg);
+      throw err;
+    }
+  };
 
+  // In your useProducts hook, change the updateVariant function:
 const updateVariant = async (variantId, variantData) => {
   try {
-    const response = await productsAPI.updateVariant(variantId, variantData);
+    // First get the product ID for this variant
+    const variantResponse = await productsAPI.getVariant(variantId);
+    const variant = variantResponse?.data?.data ?? variantResponse?.data;
+    
+    if (!variant || !variant.productId) {
+      throw new Error('Variant or product not found');
+    }
+    
+    // Use the product-based endpoint
+    const response = await productsAPI.updateVariantForProduct(
+      variant.productId, 
+      variantId, 
+      variantData
+    );
+    
     await fetchProducts();
     return response?.data?.data ?? response?.data ?? response;
   } catch (err) {
@@ -103,6 +123,34 @@ const updateVariant = async (variantId, variantData) => {
     throw err;
   }
 };
+
+  const refillVariant = async (variantId, quantityToAdd) => {
+    try {
+      // First get the current variant to know its current quantity
+      const variantResponse = await productsAPI.getVariant(variantId);
+      const currentVariant = variantResponse?.data?.data ?? variantResponse?.data;
+      
+      if (!currentVariant) {
+        throw new Error('Variant not found');
+      }
+      
+      // Calculate new quantity
+      const newQuantity = currentVariant.quantity + parseInt(quantityToAdd);
+      
+      // Update the variant with the new quantity
+      const response = await productsAPI.updateVariant(variantId, {
+        ...currentVariant,
+        quantity: newQuantity
+      });
+      
+      await fetchProducts();
+      return response?.data?.data ?? response?.data ?? response;
+    } catch (err) {
+      const msg = err?.response?.data?.message || err.message || 'Refill failed';
+      setError(msg);
+      throw err;
+    }
+  };
 
   return {
     products,
@@ -114,8 +162,6 @@ const updateVariant = async (variantId, variantData) => {
     sellProduct,
     refetch: fetchProducts,
     updateVariant,
+    refillVariant, // New function specifically for refilling
   };
 }
-
-
-

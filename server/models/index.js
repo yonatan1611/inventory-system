@@ -17,13 +17,35 @@ export const Product = {
   delete: (id) => prisma.product.delete({ where: { id: parseInt(id) } }),
 };
 
+// In models/index.js, add ProductVariant model methods
+// In models/index.js, update the ProductVariant model methods
+export const ProductVariant = {
+  findById: (id) => prisma.productVariant.findUnique({
+    where: { id: parseInt(id) },
+    include: { transactions: true } // Include transactions
+  }),
+  update: (id, data) => prisma.productVariant.update({
+    where: { id: parseInt(id) },
+    data,
+    include: { transactions: true } // Include transactions
+  }),
+  // Add other methods as needed
+};
+
 // Transaction model methods
+// In models/index.js, update the Transaction model methods
 export const Transaction = {
   findAll: () => prisma.transaction.findMany({
-    include: { product: { include: { variants: true } } },
+    include: { 
+      product: { include: { variants: true } },
+      variant: true // Include the variant relation
+    },
     orderBy: { date: 'desc' }
   }),
-  create: (data) => prisma.transaction.create({ data }),
+  create: (data) => prisma.transaction.create({ 
+    data,
+    include: { product: true, variant: true } // Include the variant in the response
+  }),
   findByDateRange: (startDate, endDate) => {
     const dateFilter = {};
     if (startDate && !isNaN(new Date(startDate))) dateFilter.gte = new Date(startDate);
@@ -31,7 +53,10 @@ export const Transaction = {
 
     return prisma.transaction.findMany({
       where: Object.keys(dateFilter).length ? { date: dateFilter } : undefined,
-      include: { product: { include: { variants: true } } }
+      include: { 
+        product: { include: { variants: true } },
+        variant: true // Include the variant relation
+      }
     });
   },
 };

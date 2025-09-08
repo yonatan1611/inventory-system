@@ -16,7 +16,7 @@ const Reports = () => {
   const [profitByMonth, setProfitByMonth] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('sales');
-  const [profit, setProfit] = useState({});
+  const [profitData, setProfit] = useState({});
   const [period, setPeriod] = useState('total'); // 'week' | 'month' | 'year' | 'total'
 
 useEffect(() => {

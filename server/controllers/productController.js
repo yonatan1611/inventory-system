@@ -85,27 +85,36 @@ export const addVariant = catchAsync(async (req, res) => {
 });
 
 // Update variant
+// In your productController.js, add this function:
+// In productController.js
 export const updateVariant = catchAsync(async (req, res) => {
   const { variantId } = req.params;
-  const { sku, color, size, costPrice, sellingPrice, quantity } = req.body;
+  const variantData = req.body;
   
-  const variant = await productService.updateProductVariant(variantId, {
-    sku,
-    color,
-    size,
-    costPrice,
-    sellingPrice,
-    quantity
+  // Check if variant exists
+  const variant = await prisma.productVariant.findUnique({
+    where: { id: parseInt(variantId) }
   });
-  
+
+  if (!variant) {
+    throw new APIError('Variant not found', 404);
+  }
+
+  // Update the variant
+  const updatedVariant = await prisma.productVariant.update({
+    where: { id: parseInt(variantId) },
+    data: variantData
+  });
+
+  // Log activity
   await activityService.createActivity(
     'UPDATE_VARIANT',
-    `Updated variant: ${variant.sku}`,
+    `Updated variant: ${updatedVariant.sku}`,
     req.user.userId,
     variant.productId
   );
-  
-  successResponse(res, 200, variant, 'Variant updated successfully');
+
+  successResponse(res, 200, updatedVariant, 'Variant updated successfully');
 });
 
 // Delete variant
@@ -157,4 +166,35 @@ export const hardDeleteProduct = catchAsync(async (req, res) => {
   const { id } = req.params;
   const result = await productService.hardDeleteProduct(id);
   successResponse(res, 200, null, result.message || 'Product permanently deleted');
+});
+
+// Add to productController.js
+export const updateVariantQuantity = catchAsync(async (req, res) => {
+  const { variantId } = req.params;
+  const { quantity } = req.body;
+  
+  // Check if variant exists
+  const variant = await prisma.productVariant.findUnique({
+    where: { id: parseInt(variantId) }
+  });
+
+  if (!variant) {
+    throw new APIError('Variant not found', 404);
+  }
+
+  // Update variant quantity
+  const updatedVariant = await prisma.productVariant.update({
+    where: { id: parseInt(variantId) },
+    data: { quantity: parseInt(quantity) }
+  });
+
+  // Log activity
+  await activityService.createActivity(
+    'UPDATE_VARIANT',
+    `Updated variant quantity: ${variant.sku} to ${quantity}`,
+    req.user.userId,
+    variant.productId
+  );
+
+  successResponse(res, 200, updatedVariant, 'Variant quantity updated successfully');
 });

@@ -43,6 +43,7 @@ model ProductVariant {
   quantity     Int
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
+  transactions Transaction[]
 
   @@unique([productId, color, size])
   @@unique([sku])
@@ -62,11 +63,15 @@ model Activity {
 }
 
 model Transaction {
-  id        Int      @id @default(autoincrement())
-  type      String
-  productId Int
-  quantity  Int
-  date      DateTime @default(now())
-  notes     String?
-  product   Product  @relation(fields: [productId], references: [id])
+  id           Int      @id @default(autoincrement())
+  type         String
+  productId    Int
+  variantId    Int?
+  quantity     Int
+  date         DateTime @default(now())
+  discount     Float?   @default(0) // Add this field
+  discountType String?  @default("fixed") // Add this field: "fixed" or "percentage"
+  notes        String?
+  product      Product  @relation(fields: [productId], references: [id])
+  variant      ProductVariant? @relation(fields: [variantId], references: [id]) // Add this relation
 }

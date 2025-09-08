@@ -18,10 +18,14 @@ export const validateVariant = [
 ];
 
 // Validation rules for transaction creation
+// Update your validateTransaction middleware
 export const validateTransaction = [
-  body('type').isIn(['PURCHASE', 'SALE', 'ADJUSTMENT']).withMessage('Invalid transaction type'),
+  body('type').isIn(['PURCHASE', 'SALE', 'ADJUSTMENT', 'REFILL']).withMessage('Invalid transaction type'),
   body('productId').isInt({ min: 1 }).withMessage('Valid product ID is required'),
+  body('variantId').isInt({ min: 1 }).withMessage('Valid variant ID is required'), // Add this line
   body('quantity').isInt({ min: 1 }).withMessage('Quantity must be a positive integer'),
+  body('discount').optional().isFloat({ min: 0 }).withMessage('Discount must be a non-negative number'),
+  body('discountType').optional().isIn(['fixed', 'percentage']).withMessage('Discount type must be fixed or percentage'),
 ];
 
 // Validation rules for authentication

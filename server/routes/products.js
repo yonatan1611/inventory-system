@@ -10,7 +10,8 @@ import {
   hardDeleteProduct,
   addVariant,
   updateVariant,
-  deleteVariant
+  deleteVariant,
+  updateVariantQuantity
 } from '../controllers/productController.js';
 import { authenticateToken } from '../middleware/auth.js';
 import { validateProduct, handleValidationErrors } from '../middleware/validation.js';
@@ -18,6 +19,7 @@ import { validateProduct, handleValidationErrors } from '../middleware/validatio
 const router = express.Router();
 
 router.get('/', authenticateToken, getProducts);
+router.patch('/variants/:variantId/quantity', authenticateToken, updateVariantQuantity);
 router.get('/:id', authenticateToken, getProduct);
 router.post('/', authenticateToken, validateProduct, handleValidationErrors, createProduct);
 router.put('/:id', authenticateToken, validateProduct, handleValidationErrors, updateProduct);

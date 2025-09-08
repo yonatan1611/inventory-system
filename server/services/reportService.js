@@ -1,4 +1,4 @@
-// reportService.js (updated - uses toNum and variant fallback)
+// server/services/reportService.js
 import { Transaction, Product } from '../models/index.js';
 
 const toNum = (v) => {
@@ -6,16 +6,32 @@ const toNum = (v) => {
   return Number.isFinite(n) ? n : 0;
 };
 
-const getSellingAndCost = (product) => {
+const getSellingAndCost = (product, transaction = {}) => {
   // prefer product-level price, otherwise pick first variant (common case)
   const selling = product?.sellingPrice ?? product?.variants?.[0]?.sellingPrice;
   const cost = product?.costPrice ?? product?.variants?.[0]?.costPrice;
-  return { selling: toNum(selling), cost: toNum(cost) };
+  const discount = transaction.discount || 0;
+  const discountType = transaction.discountType || 'fixed';
+  
+  let finalSellingPrice = toNum(selling);
+  
+  // Apply discount
+  if (discountType === 'percentage') {
+    finalSellingPrice = finalSellingPrice * (1 - toNum(discount) / 100);
+  } else {
+    finalSellingPrice = finalSellingPrice - toNum(discount);
+  }
+  
+  return { 
+    selling: Math.max(0, finalSellingPrice), // Ensure non-negative price
+    cost: toNum(cost) 
+  };
 };
 
 export const reportService = {
   generateProfitLossReport: async (startDate, endDate) => {
     const transactions = await Transaction.findByDateRange(startDate, endDate);
+    // FIX: Changed from salesData to salesData (correct variable name)
     const salesData = transactions.filter(t => t.type === 'SALE');
 
     let totalRevenue = 0;
@@ -23,7 +39,7 @@ export const reportService = {
 
     salesData.forEach(sale => {
       const qty = toNum(sale.quantity);
-      const { selling, cost } = getSellingAndCost(sale.product || {});
+      const { selling, cost } = getSellingAndCost(sale.product || {}, sale);
       totalRevenue += qty * selling;
       totalCost += qty * cost;
     });
@@ -90,7 +106,7 @@ export const reportService = {
       const product = sale.product || {};
       const name = product.name ?? 'Unknown';
       const qty = toNum(sale.quantity);
-      const { selling, cost } = getSellingAndCost(product);
+      const { selling, cost } = getSellingAndCost(product, sale);
 
       if (!summary[name]) summary[name] = { name, quantity: 0, revenue: 0, profit: 0 };
       summary[name].quantity += qty;
@@ -110,7 +126,7 @@ export const reportService = {
       const date = new Date(sale.date);
       const month = date.toLocaleString('default', { month: 'short', year: 'numeric' });
       const qty = toNum(sale.quantity);
-      const { selling, cost } = getSellingAndCost(sale.product || {});
+      const { selling, cost } = getSellingAndCost(sale.product || {}, sale);
 
       if (!monthly[month]) monthly[month] = { name: month, sales: 0, profit: 0 };
       monthly[month].sales += qty * selling;
@@ -121,30 +137,30 @@ export const reportService = {
   },
 
   generateInventoryCategories: async () => {
-  const products = await Product.findAll();
-  const categories = {};
+    const products = await Product.findAll();
+    const categories = {};
 
-  products.forEach(product => {
-    const name = product.category ?? 'Uncategorized';
+    products.forEach(product => {
+      const name = product.category ?? 'Uncategorized';
 
-    if (product.variants && product.variants.length) {
-      product.variants.forEach(v => {
-        const qty = Number(v.quantity) || 0;
-        const cost = Number(v.costPrice) || 0;
+      if (product.variants && product.variants.length) {
+        product.variants.forEach(v => {
+          const qty = Number(v.quantity) || 0;
+          const cost = Number(v.costPrice) || 0;
+          categories[name] = categories[name] || { value: 0, items: 0 };
+          categories[name].value += qty * cost;
+          categories[name].items += qty;
+        });
+      } else {
+        // fallback if no variants
+        const qty = Number(product.quantity) || 0;
+        const cost = Number(product.costPrice) || 0;
         categories[name] = categories[name] || { value: 0, items: 0 };
         categories[name].value += qty * cost;
         categories[name].items += qty;
-      });
-    } else {
-      // fallback if no variants
-      const qty = Number(product.quantity) || 0;
-      const cost = Number(product.costPrice) || 0;
-      categories[name] = categories[name] || { value: 0, items: 0 };
-      categories[name].value += qty * cost;
-      categories[name].items += qty;
-    }
-  });
+      }
+    });
 
-  return Object.entries(categories).map(([name, { value, items }]) => ({ name, value, items }));
+    return Object.entries(categories).map(([name, { value, items }]) => ({ name, value, items }));
   }
 };
