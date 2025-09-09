@@ -1,0 +1,51 @@
+version: "3.8"
+services:
+  db:
+    image: postgres:15
+    container_name: inventory_db
+    environment:
+      POSTGRES_DB: inventory
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    volumes:
+      - db-data:/var/lib/postgresql/data
+      - ./db/init:/docker-entrypoint-initdb.d
+    ports:
+      - "${DB_PORT:-5432}:5432"
+
+  server:
+    build:
+      context: .
+      dockerfile: server/DockerFile   # ensure correct case
+    image: yonatan/inventory-server:latest
+    container_name: inventory_server
+    environment:
+      # container-side port is fixed to 4000 so nginx can proxy to it
+      PORT: "4000"
+      DATABASE_URL: "${DATABASE_URL:-postgres://postgres:postgres@db:5432/inventory}"
+      JWT_SECRET: "${JWT_SECRET:- your-super-secret-jwt-key}"
+      NODE_ENV: production
+    depends_on:
+      - db
+    # publish host "${PORT}" to container 4000 (host port configurable)
+    ports:
+      - "${PORT:-4000}:4000"
+
+  client:
+    build:
+      context: .
+      dockerfile: client/Dockerfile
+    image: yonatan/inventory-client:latest
+    container_name: inventory_client
+    depends_on:
+      - server
+    # nginx inside container listens on 80, map host CLIENT_PORT to 80
+    ports:
+      - "${CLIENT_PORT:-3000}:80"
+    environment:
+      # optional: expose which API host / port to the container; nginx proxies /api to server:4000
+      NODE_ENV: production
+      VITE_API_BASE: "${VITE_API_BASE:-http://localhost:${PORT:-4000}}"
+
+volumes:
+  db-data:
