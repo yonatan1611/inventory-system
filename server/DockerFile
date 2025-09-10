@@ -21,5 +21,5 @@ EXPOSE 4000
 COPY server/wait-for-db.sh /usr/local/bin/
 RUN chmod +x /usr/local/bin/wait-for-db.sh
 
-# Run migrations first, then seed, then start server
-CMD ["sh", "-c", "wait-for-db.sh db 5432 30 && npx prisma migrate reset --force && npx prisma db seed && node server.js"]
+# Run migrations (safe), then start server
+CMD ["sh", "-c", "wait-for-db.sh db 5432 30 && npx prisma migrate deploy && node server.js"]
