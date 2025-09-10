@@ -11,7 +11,7 @@ services:
       - db-data:/var/lib/postgresql/data
       - ./db/init:/docker-entrypoint-initdb.d
     ports:
-      - "${DB_PORT:-5432}:5432"
+      - "5432:5432"
 
   server:
     build:

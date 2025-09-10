@@ -1,30 +1,25 @@
-# server/Dockerfile (replace existing)
 FROM node:20-alpine
 
 WORKDIR /usr/src/app
 
-# copy only package files so install step is cached
-COPY server/package*.json ./server/
+# Copy package files first for better caching
+COPY server/package*.json ./
 
-WORKDIR /usr/src/app/server
+# Install dependencies
+RUN npm install
 
-# Use npm install so build works even without package-lock.json
-RUN npm install --production=false
+# Copy the entire server directory (includes prisma folder)
+COPY server/ ./
 
-# copy rest of repo (client + server)
-WORKDIR /usr/src/app
-COPY . .
-
-# build client
-WORKDIR /usr/src/app/client
-RUN npm install && npm run build
-
+# Generate Prisma client
+RUN npx prisma generate
 
 ENV NODE_ENV=production
 EXPOSE 4000
 
-# add wait script and make executable inside image
-COPY server/wait-for-db.sh /usr/local/bin/wait-for-db.sh
+# Copy and make wait script executable
+COPY server/wait-for-db.sh /usr/local/bin/
 RUN chmod +x /usr/local/bin/wait-for-db.sh
 
-CMD ["sh", "-c", "wait-for-db.sh db 5432 30 && npx prisma migrate deploy || true && npx prisma db seed || true && node server.js"]
+# Run migrations first, then seed, then start server
+CMD ["sh", "-c", "wait-for-db.sh db 5432 30 && npx prisma migrate reset --force && npx prisma db seed && node server.js"]
