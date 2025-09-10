@@ -2,6 +2,7 @@ version: "3.8"
 services:
   db:
     image: postgres:15
+    restart: always
     container_name: inventory_db
     environment:
       POSTGRES_DB: inventory
@@ -18,6 +19,7 @@ services:
       context: .
       dockerfile: server/DockerFile   # ensure correct case
     image: yonatan/inventory-server:latest
+    restart: always
     container_name: inventory_server
     environment:
       # container-side port is fixed to 4000 so nginx can proxy to it
@@ -36,6 +38,7 @@ services:
       context: .
       dockerfile: client/Dockerfile
     image: yonatan/inventory-client:latest
+    restart: always
     container_name: inventory_client
     depends_on:
       - server
